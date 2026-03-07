@@ -1,0 +1,10 @@
+# GFI CTI Platform — Python dependencies
+# Install: pip install -r requirements.txt
+# Python >= 3.10 required
+
+streamlit>=1.32.0
+pandas>=2.2.0
+numpy>=1.26.0
+plotly>=5.20.0
+requests>=2.31.0
+python-dateutil>=2.9.0
