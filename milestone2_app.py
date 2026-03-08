@@ -13,6 +13,7 @@ M2 Additions:
 """
 
 import json
+import re
 from datetime import datetime, date
 
 import numpy as np
@@ -21,6 +22,49 @@ import plotly.express as px
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+
+# ─────────────────────────────────────────────
+# CHART HELPER — dark-themed charts to match app
+# ─────────────────────────────────────────────
+_CHART_BG    = "#0F1923"
+_CHART_PLOT  = "#162032"
+_CHART_GRID  = "#2D3748"
+_CHART_TEXT  = "#E2E8F0"
+_CHART_TITLE = "#FFFFFF"
+
+def _fix_chart(fig):
+    """Switch every chart to a dark theme consistent with the app."""
+    fig.update_xaxes(
+        color=_CHART_TEXT,
+        tickfont=dict(color=_CHART_TEXT, family="Calibri"),
+        title_font=dict(color=_CHART_TEXT, family="Calibri"),
+        gridcolor=_CHART_GRID, linecolor=_CHART_GRID, zerolinecolor=_CHART_GRID,
+    )
+    fig.update_yaxes(
+        color=_CHART_TEXT,
+        tickfont=dict(color=_CHART_TEXT, family="Calibri"),
+        title_font=dict(color=_CHART_TEXT, family="Calibri"),
+        gridcolor=_CHART_GRID, linecolor=_CHART_GRID, zerolinecolor=_CHART_GRID,
+    )
+    fig.update_layout(
+        font=dict(color=_CHART_TEXT, family="Calibri"),
+        title_font=dict(color=_CHART_TITLE, family="Calibri", size=14),
+        legend=dict(font=dict(color=_CHART_TEXT, family="Calibri"),
+                    title_font=dict(color=_CHART_TEXT),
+                    bgcolor="rgba(15,25,35,0.6)", bordercolor=_CHART_GRID),
+        paper_bgcolor=_CHART_BG,
+        plot_bgcolor=_CHART_PLOT,
+    )
+    return fig
+
+def _caption(text: str):
+    """Render a figure caption with guaranteed visibility in dark mode."""
+    html = re.sub(r'\*\*(.+?)\*\*', r'<strong style="color:#CBD5E0">\1</strong>', text)
+    st.markdown(
+        f'<p style="color:#A0AEC0;font-size:0.82rem;'
+        f'margin-top:2px;margin-bottom:14px;line-height:1.5">{html}</p>',
+        unsafe_allow_html=True,
+    )
 
 # ─────────────────────────────────────────────
 # PAGE CONFIG & GLOBAL STYLE
@@ -64,7 +108,7 @@ div[data-testid="metric-container"] {
     letter-spacing: 0.03em;
 }
 .sub-header {
-    color: #1E3A5F;
+    color: #BFD7FF;
     border-bottom: 2px solid #C9A017;
     padding-bottom: 4px;
     margin: 20px 0 10px 0;
@@ -77,7 +121,19 @@ div[data-testid="metric-container"] {
     border-radius: 6px;
     padding: 16px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    color: #1A202C !important;
 }
+.card p, .card li, .card small, .card i, .card td, .card th, .card span:not(.gold-tag) {
+    color: #1A202C !important;
+}
+.card b:not([style*="color"]), .card strong:not([style*="color"]) {
+    color: #1A202C !important;
+}
+.card table { width: 100%; border-collapse: collapse; }
+.card td, .card th { padding: 4px 8px; }
+div[data-testid="metric-container"] label,
+div[data-testid="metric-container"] div { color: #1A202C !important; }
+div[data-testid="stCaptionContainer"] p { color: #A0AEC0 !important; font-size: 0.82rem !important; }
 .gold-tag {
     background: #C9A017;
     color: #0A1628;
@@ -166,22 +222,33 @@ def filter_kev_finance(df):
 def fetch_feodo():
     """
     Feodo Tracker C2 blocklist (abuse.ch) — banking trojan command-and-control IPs.
-    Endpoint: https://feodotracker.abuse.ch/downloads/ipblocklist_json.json
-    Fields: ip_address, port, status, malware, first_seen, last_online, country
+    Endpoint: https://feodotracker.abuse.ch/downloads/ipblocklist.csv  (CSV, skips # comment lines)
+    Fields: ip_address, port, status, malware, first_seen, last_online
     TLP: WHITE — free OSINT, no API key required.
     Update frequency: every 5 minutes.
+    Note: JSON endpoint was retired; CSV endpoint is the current official download.
     """
     try:
         r = requests.get(
-            "https://feodotracker.abuse.ch/downloads/ipblocklist_json.json",
+            "https://feodotracker.abuse.ch/downloads/ipblocklist.csv",
             timeout=15,
             headers={"User-Agent": "GFI-CTI-Platform/2.0 (CIS8684 Academic Research)"}
         )
         r.raise_for_status()
-        data = r.json()
-        df = pd.DataFrame(data)
-        # Normalise column names
-        df.columns = [c.lower() for c in df.columns]
+        # CSV has comment lines starting with '#' — skip them
+        lines = [l for l in r.text.splitlines() if not l.startswith("#")]
+        from io import StringIO
+        df = pd.read_csv(StringIO("\n".join(lines)))
+        # Normalise column names (strip whitespace, lowercase)
+        df.columns = [c.strip().lower() for c in df.columns]
+        # Remap CSV column names to the names used throughout the app
+        rename_map = {
+            "dst_ip": "ip_address",
+            "dst_port": "port",
+            "c2_status": "status",
+            "first_seen_utc": "first_seen",
+        }
+        df.rename(columns=rename_map, inplace=True)
         for col in ["first_seen", "last_online"]:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors="coerce")
@@ -195,20 +262,51 @@ def fetch_ransomware_live():
     """
     Ransomware.live recent victim tracker.
     Endpoint: https://api.ransomware.live/v2/recentvictims
-    Fields: victim, group, discovered, description, website, post, country
+    Fields: victim, group, discovered, attackdate, description, country, domain, url
     TLP: WHITE — OSINT aggregated from ransomware group leak sites.
     Update frequency: near real-time (new posts within minutes).
     """
     try:
         r = requests.get(
             "https://api.ransomware.live/v2/recentvictims",
-            timeout=15,
-            headers={"User-Agent": "GFI-CTI-Platform/2.0 (CIS8684 Academic Research)"}
+            timeout=20,
+            headers={
+                "User-Agent": "GFI-CTI-Platform/2.0 (CIS8684 Academic Research)",
+                "Accept": "application/json",
+            }
         )
         r.raise_for_status()
-        df = pd.DataFrame(r.json())
-        if "discovered" in df.columns:
-            df["discovered"] = pd.to_datetime(df["discovered"], errors="coerce")
+        payload = r.json()
+        # API may return a plain list OR a dict wrapping the list (e.g. {"data": [...]})
+        if isinstance(payload, list):
+            records = payload
+        elif isinstance(payload, dict):
+            # Try common wrapper keys
+            for key in ("data", "victims", "results", "items"):
+                if key in payload and isinstance(payload[key], list):
+                    records = payload[key]
+                    break
+            else:
+                # Fallback: treat the single dict as one record
+                records = [payload]
+        else:
+            return pd.DataFrame()
+
+        if not records:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(records)
+        df.columns = [c.strip().lower() for c in df.columns]
+
+        # Normalise date columns — API uses both 'discovered' and 'attackdate'
+        for col in ("discovered", "attackdate"):
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors="coerce")
+
+        # Ensure 'discovered' column exists (fall back to attackdate if absent)
+        if "discovered" not in df.columns and "attackdate" in df.columns:
+            df["discovered"] = df["attackdate"]
+
         return df
     except Exception:
         return pd.DataFrame()
@@ -370,7 +468,7 @@ DF_TRENDS = real_trends()
 # ─────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 🏦 GFI CTI Platform")
-    st.markdown("**CIS 8684 · Milestone 1**")
+    st.markdown("**CIS 8684 · Milestones 1 & 2**")
     st.divider()
     page = st.radio("Navigate", [
         "✅  What's New",
@@ -393,7 +491,7 @@ with st.sidebar:
     sel_cats = st.multiselect("Threat Categories", THREAT_CATEGORIES, default=THREAT_CATEGORIES)
     year_range = st.slider("Year Range", 2019, 2025, (2021, 2025))
     st.divider()
-    st.caption("Data: CISA KEV · EPSS · Feodo · PhishTank · Ransomware.live · SEC EDGAR")
+    _caption("Data: CISA KEV · EPSS · Feodo · PhishTank · Ransomware.live · SEC EDGAR")
 
 # ─────────────────────────────────────────────
 # PAGE: WHAT'S NEW  (M1 Checklist — required)
@@ -682,13 +780,13 @@ elif page == "📈  Threat Trends & Assets":
         xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"),
         font=dict(family="Calibri"),
     )
-    st.plotly_chart(fig_trend, use_container_width=True)
-    st.caption(
+    st.plotly_chart(_fix_chart(fig_trend), use_container_width=True)
+    _caption(
         "**Figure 1.** Threat category incident index (2019–2025). Global index normalized from: "
         "SonicWall Cyber Threat Report 2024 (Ransomware); abuse.ch Feodo Tracker (Banking Trojans); "
         "FBI IC3 Annual Reports 2019–2023 (BEC/Phishing); ENISA Threat Landscape 2024 (Nation-State APT, Supply Chain). "
         "Financial Sector share per ENISA TIBER-EU & Verizon DBIR 2024 vertical breakdowns. 2025 = annualized projection."
-    )
+        )
 
     # KPI row
     latest_year = plot_df["Year"].max() if not plot_df.empty else 2025
@@ -824,12 +922,12 @@ elif page == "📈  Threat Trends & Assets":
         )
         fig_hm.update_layout(height=280, font=dict(family="Calibri"),
                               plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF")
-        st.plotly_chart(fig_hm, use_container_width=True)
-        st.caption(
+        st.plotly_chart(_fix_chart(fig_hm), use_container_width=True)
+        _caption(
             "**Figure 2.** Financial sector threat intensity heatmap by category and year (2019–2025). "
             "Values derived from real_trends() data; darker cells indicate higher incident index. "
             "Source: SonicWall Cyber Threat Report, FBI IC3, ENISA Threat Landscape 2024."
-        )
+            )
 
     # ── Critical assets ──
     st.markdown('<div class="sub-header">Critical Asset Identification</div>', unsafe_allow_html=True)
@@ -918,12 +1016,12 @@ elif page == "📈  Threat Trends & Assets":
                             font=dict(family="Calibri"),
                             plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                             coloraxis_showscale=False)
-    st.plotly_chart(fig_asset, use_container_width=True)
-    st.caption(
+    st.plotly_chart(_fix_chart(fig_asset), use_container_width=True)
+    _caption(
         "**Figure 3.** Critical asset ranking by weighted criticality score (Financial × Reputational × Operational impact). "
         "Asset definitions derived from SWIFT CSCF v2024, FFIEC Cybersecurity Assessment Tool, and FSOC Annual Report 2024. "
         "Adjust the weight sliders above to model your organization's risk priorities."
-    )
+        )
 
     display_cols = ["Rank", "Asset", "Criticality Score", "Value", "Users", "Ramifications"]
     st.dataframe(asset_df[display_cols], use_container_width=True, hide_index=True)
@@ -953,12 +1051,12 @@ elif page == "📈  Threat Trends & Assets":
     fig_exp.update_layout(height=320, font=dict(family="Calibri"),
                           paper_bgcolor="#FFFFFF",
                           xaxis=dict(tickangle=-35))
-    st.plotly_chart(fig_exp, use_container_width=True)
-    st.caption(
+    st.plotly_chart(_fix_chart(fig_exp), use_container_width=True)
+    _caption(
         "**Figure 4.** Threat-to-asset exposure matrix. Scores (0–1) reflect expert-assessed relative exposure; "
         "high-confidence anchors (e.g., Nation-State → SWIFT = 0.97) sourced from SWIFT CSCF, CISA advisories, and ENISA TIBER-EU 2024. "
         "Random baseline scores seeded at numpy seed=42 for reproducibility."
-    )
+        )
 
     # ── Sub-sector risk breakdown (uses sel_subsectors sidebar filter) ──
     st.markdown('<div class="sub-header">Sub-Sector Risk Breakdown</div>', unsafe_allow_html=True)
@@ -994,11 +1092,11 @@ elif page == "📈  Threat Trends & Assets":
                 xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0", range=[0, 1.05]),
                 legend_title="Threat Category",
             )
-            st.plotly_chart(fig_ss, use_container_width=True)
-            st.caption(
-                "**Figure 5.** Sub-sector relative threat risk scores (0 = Low, 1 = High). "
-                "Scores sourced from ENISA TIBER-EU sector threat assessments, Verizon DBIR 2024 industry verticals, "
-                "and FS-ISAC Annual Threat Summary 2024. Filtered by sidebar Sub-sector and Threat Category selections."
+            st.plotly_chart(_fix_chart(fig_ss), use_container_width=True)
+        _caption(
+            "**Figure 5.** Sub-sector relative threat risk scores (0 = Low, 1 = High). "
+            "Scores sourced from ENISA TIBER-EU sector threat assessments, Verizon DBIR 2024 industry verticals, "
+            "and FS-ISAC Annual Threat Summary 2024. Filtered by sidebar Sub-sector and Threat Category selections."
             )
     else:
         st.info("Select at least one sub-sector in the sidebar to view the risk breakdown.")
@@ -1122,12 +1220,12 @@ elif page == "💎  Diamond Models":
         plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
         margin=dict(l=20, r=20, t=20, b=20),
     )
-    st.plotly_chart(fig_dm, use_container_width=True)
-    st.caption(
+    st.plotly_chart(_fix_chart(fig_dm), use_container_width=True)
+    _caption(
         "**Figure 6.** Diamond Model visualization — Adversary, Capability, Infrastructure, Victim nodes. "
         "Framework: Caltagirone, Pendergast & Betz (2013), 'The Diamond Model of Intrusion Analysis,' CTI Technical Report. "
         "Threat actor data sourced from CISA advisories, FBI press releases, and MITRE ATT&CK Enterprise Framework."
-    )
+        )
 
     # ── Export ──
     export_data = {
@@ -1155,7 +1253,7 @@ elif page == "💎  Diamond Models":
 # ─────────────────────────────────────────────
 elif page == "📊  Live Dashboard":
     st.markdown('<div class="section-header">📊 Live Intelligence Dashboard — Milestone 1 Starter</div>', unsafe_allow_html=True)
-    st.caption("Data: CISA KEV (live) · EPSS (live) · Indexed from SonicWall/FBI IC3/ENISA reports")
+    _caption("Data: CISA KEV (live) · EPSS (live) · Indexed from SonicWall/FBI IC3/ENISA reports")
 
     # Fetch live data
     kev_df = fetch_kev()
@@ -1225,12 +1323,12 @@ elif page == "📊  Live Dashboard":
             plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
             xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"),
         )
-        st.plotly_chart(fig_kev_time, use_container_width=True)
-        st.caption(
+        st.plotly_chart(_fix_chart(fig_kev_time), use_container_width=True)
+        _caption(
             f"**Figure 7.** Monthly CISA KEV additions for financial-sector vendors — {selected_vendor}. "
             "Live data fetched from CISA Known Exploited Vulnerabilities catalog "
             "(https://www.cisa.gov/known-exploited-vulnerabilities-catalog). Updated hourly."
-        )
+            )
     else:
         st.warning("⚠️ KEV API unavailable. Check your internet connection.")
 
@@ -1258,14 +1356,14 @@ elif page == "📊  Live Dashboard":
                                 plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                 xaxis_title="EPSS Score", yaxis_title="Count",
                                 xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"))
-        st.plotly_chart(fig_epss, use_container_width=True)
-        st.caption(
+        st.plotly_chart(_fix_chart(fig_epss), use_container_width=True)
+        _caption(
             "**Figure 8.** EPSS score distribution — probability that a CVE will be exploited in the wild within 30 days. "
             "Live data from FIRST.org EPSS API v3 (https://api.first.org/). "
             "Red dashed line marks high-risk threshold (EPSS ≥ 0.50). "
             "Source: Jacobs et al. (2021), 'Improving Vulnerability Remediation Through Better Exploit Prediction,' "
             "Journal of Cybersecurity, Oxford Academic."
-        )
+            )
 
         # Top 10 EPSS
         st.markdown("**Top 10 CVEs by EPSS Score (Highest Exploitation Probability)**")
@@ -1294,11 +1392,11 @@ elif page == "📊  Live Dashboard":
         fig_vendor.update_layout(height=320, font=dict(family="Calibri"),
                                   plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                   coloraxis_showscale=False, xaxis_tickangle=-30)
-        st.plotly_chart(fig_vendor, use_container_width=True)
-        st.caption(
-            "**Figure 9.** Top vendors by CISA KEV count in the financial-sector filtered catalog. "
-            "Vendor filter applied from FINANCE_VENDORS list (Oracle, SAP, Cisco, Microsoft, etc.). "
-            "Source: CISA Known Exploited Vulnerabilities catalog (live feed)."
+        st.plotly_chart(_fix_chart(fig_vendor), use_container_width=True)
+    _caption(
+        "**Figure 9.** Top vendors by CISA KEV count in the financial-sector filtered catalog. "
+        "Vendor filter applied from FINANCE_VENDORS list (Oracle, SAP, Cisco, Microsoft, etc.). "
+        "Source: CISA Known Exploited Vulnerabilities catalog (live feed)."
         )
 
 # ─────────────────────────────────────────────
@@ -1338,12 +1436,12 @@ elif page == "💼  Intelligence Buy-In":
         plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
         xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"),
     )
-    st.plotly_chart(fig_breach, use_container_width=True)
-    st.caption(
+    st.plotly_chart(_fix_chart(fig_breach), use_container_width=True)
+    _caption(
         "**Figure 10.** Average data breach cost by sector (USD millions), 2019–2024. "
         "Financial sector and global average: IBM Cost of a Data Breach Report 2019–2024. "
         "Healthcare data: IBM CODB 2019–2024. Financial sector consistently ranks #2 highest globally behind healthcare."
-    )
+        )
 
     # ── Frequency & strategy ──
     st.markdown('<div class="sub-header">How Often Do Financial Firms Experience Breaches?</div>', unsafe_allow_html=True)
@@ -1357,12 +1455,12 @@ elif page == "💼  Intelligence Buy-In":
                           color_discrete_sequence=["#C0392B", "#C9A017", "#2E86AB"],
                           title="Financial Firms — Breach Frequency (2024)")
         fig_freq.update_layout(height=320, font=dict(family="Calibri"))
-        st.plotly_chart(fig_freq, use_container_width=True)
-        st.caption(
+        st.plotly_chart(_fix_chart(fig_freq), use_container_width=True)
+        _caption(
             "**Figure 11.** Financial institution breach frequency (2024). "
             "Source: Verizon DBIR 2024 — Financial & Insurance industry vertical; "
             "34% confirmed data breaches, 41% security incidents, 25% no reported incident."
-        )
+            )
     with fc2:
         st.markdown("""
         <div class="card" style="border-left:5px solid #C9A017; min-height:280px; padding:20px">
@@ -1403,7 +1501,7 @@ elif page == "💼  Intelligence Buy-In":
                 <tr><td><b>Net ROI</b></td><td align="right"><b style="color:{'#2E7D32' if roi > 0 else '#C0392B'}; font-size:1.3rem">{roi:,.0f}%</b></td></tr>
             </table>
         </div>""", unsafe_allow_html=True)
-        st.caption("Sources: IBM Cost of Data Breach 2024 · Ponemon Institute · Verizon DBIR 2024")
+        _caption("Sources: IBM Cost of Data Breach 2024 · Ponemon Institute · Verizon DBIR 2024")
 
     # ── Summary ──
     st.markdown('<div class="sub-header">Executive Summary: The Case for Investment</div>', unsafe_allow_html=True)
@@ -1494,10 +1592,10 @@ elif page == "📡  Data Sources":
             # KPIs
             fk1, fk2, fk3, fk4 = st.columns(4)
             fk1.metric("Total Active C2 IPs", f"{len(feodo_df):,}")
-            fk2.metric("Online Now", f"{(feodo_df.get('status','') == 'online').sum():,}" if 'status' in feodo_df.columns else "—")
+            fk2.metric("Online Now", f"{(feodo_df['status'] == 'online').sum():,}" if 'status' in feodo_df.columns else "—")
             fk3.metric("Malware Families", feodo_df['malware'].nunique() if 'malware' in feodo_df.columns else "—")
             fk4.metric("Countries Represented", feodo_df['country'].nunique() if 'country' in feodo_df.columns else "—")
-            st.caption("KPIs sourced live from abuse.ch Feodo Tracker API. Refreshed every 60 minutes.")
+            _caption("KPIs sourced live from abuse.ch Feodo Tracker API. Refreshed every 60 minutes.")
 
             # Malware family breakdown
             if 'malware' in feodo_df.columns:
@@ -1512,8 +1610,8 @@ elif page == "📡  Data Sources":
                 fig_feodo_mal.update_layout(height=300, font=dict(family="Calibri"),
                                             plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                             coloraxis_showscale=False)
-                st.plotly_chart(fig_feodo_mal, use_container_width=True)
-                st.caption("**Figure 12.** Active C2 count per banking trojan family. Source: abuse.ch Feodo Tracker live API (feodotracker.abuse.ch). Emotet/QakBot/Dridex/TrickBot/BazarLoader are the dominant banking trojans targeting GFI. Updated every 5 minutes.")
+                st.plotly_chart(_fix_chart(fig_feodo_mal), use_container_width=True)
+                _caption("**Figure 12.** Active C2 count per banking trojan family. Source: abuse.ch Feodo Tracker live API (feodotracker.abuse.ch). Emotet/QakBot/Dridex/TrickBot/BazarLoader are the dominant banking trojans targeting GFI. Updated every 5 minutes.")
 
             # Country heatmap
             if 'country' in feodo_df.columns:
@@ -1528,8 +1626,8 @@ elif page == "📡  Data Sources":
                 fig_feodo_geo.update_layout(height=280, font=dict(family="Calibri"),
                                             plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                             coloraxis_showscale=False)
-                st.plotly_chart(fig_feodo_geo, use_container_width=True)
-                st.caption("**Figure 13.** C2 hosting country distribution from Feodo Tracker. Bullet-proof hosting jurisdictions (RU, NL, DE, US) dominate. Source: abuse.ch Feodo Tracker live API.")
+                st.plotly_chart(_fix_chart(fig_feodo_geo), use_container_width=True)
+                _caption("**Figure 13.** C2 hosting country distribution from Feodo Tracker. Bullet-proof hosting jurisdictions (RU, NL, DE, US) dominate. Source: abuse.ch Feodo Tracker live API.")
 
             # Sample records
             st.markdown("**Sample Records (live)**")
@@ -1601,7 +1699,7 @@ elif page == "📡  Data Sources":
             rk2.metric("Financial Sector Victims", f"{len(fin_rw):,}")
             rk3.metric("Active Ransomware Groups", rw_df['group'].nunique() if 'group' in rw_df.columns else "—")
             rk4.metric("Countries Affected", rw_df['country'].nunique() if 'country' in rw_df.columns else "—")
-            st.caption("KPIs sourced live from ransomware.live API. Refreshed every 30 minutes.")
+            _caption("KPIs sourced live from ransomware.live API. Refreshed every 30 minutes.")
 
             col_rw1, col_rw2 = st.columns(2)
             with col_rw1:
@@ -1617,8 +1715,8 @@ elif page == "📡  Data Sources":
                                              yaxis=dict(autorange="reversed"),
                                              plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                              coloraxis_showscale=False)
-                    st.plotly_chart(fig_rw_grp, use_container_width=True)
-                    st.caption("**Figure 14.** Top ransomware groups by recent victim count. Source: ransomware.live API (live). Financial sector victims highlighted separately.")
+                    st.plotly_chart(_fix_chart(fig_rw_grp), use_container_width=True)
+                    _caption("**Figure 14.** Top ransomware groups by recent victim count. Source: ransomware.live API (live). Financial sector victims highlighted separately.")
 
             with col_rw2:
                 if 'country' in rw_df.columns:
@@ -1633,8 +1731,8 @@ elif page == "📡  Data Sources":
                                               yaxis=dict(autorange="reversed"),
                                               plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                               coloraxis_showscale=False)
-                    st.plotly_chart(fig_rw_ctry, use_container_width=True)
-                    st.caption("**Figure 15.** Ransomware victim distribution by country. Source: ransomware.live API (live). US dominates due to reporting and firm concentration.")
+                    st.plotly_chart(_fix_chart(fig_rw_ctry), use_container_width=True)
+                    _caption("**Figure 15.** Ransomware victim distribution by country. Source: ransomware.live API (live). US dominates due to reporting and firm concentration.")
 
             st.markdown("**Financial-Sector Victims (Keyword-Filtered)**")
             if not fin_rw.empty:
@@ -1700,7 +1798,8 @@ elif page == "📡  Data Sources":
             tf1, tf2, tf3, tf4 = st.columns(4)
             tf1.metric("Total IOCs Fetched", f"{len(tf_df):,}")
             tf2.metric("IOC Types", tf_df['ioc_type'].nunique() if 'ioc_type' in tf_df.columns else "—")
-            tf3.metric("Malware Families", tf_df.get('malware_printable', tf_df.get('malware', pd.Series())).nunique())
+            _tf_mal_col = 'malware_printable' if 'malware_printable' in tf_df.columns else ('malware' if 'malware' in tf_df.columns else None)
+            tf3.metric("Malware Families", tf_df[_tf_mal_col].nunique() if _tf_mal_col else "—")
             tf4.metric("Days Coverage", tf_days)
 
             if 'ioc_type' in tf_df.columns:
@@ -1710,8 +1809,8 @@ elif page == "📡  Data Sources":
                                 title=f"ThreatFox IOC Type Breakdown (last {tf_days} days)",
                                 color_discrete_sequence=["#1E3A5F", "#C9A017", "#2E86AB", "#C0392B", "#6B5B95"])
                 fig_tf.update_layout(height=300, font=dict(family="Calibri"))
-                st.plotly_chart(fig_tf, use_container_width=True)
-                st.caption(f"**Figure 16.** ThreatFox IOC type distribution (last {tf_days} days). Source: abuse.ch ThreatFox API. IP:Port dominates — consistent with C2 infrastructure profiles for banking trojans.")
+                st.plotly_chart(_fix_chart(fig_tf), use_container_width=True)
+                _caption(f"**Figure 16.** ThreatFox IOC type distribution (last {tf_days} days). Source: abuse.ch ThreatFox API. IP:Port dominates — consistent with C2 infrastructure profiles for banking trojans.")
 
             show_tf_cols = [c for c in ["ioc", "ioc_type", "malware_printable", "threat_type", "first_seen", "tags"] if c in tf_df.columns]
             st.dataframe(tf_df[show_tf_cols].head(20), use_container_width=True, hide_index=True)
@@ -1783,8 +1882,8 @@ elif page == "📡  Data Sources":
                 fig_sec.update_layout(height=300, font=dict(family="Calibri"),
                                       plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                       xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"))
-                st.plotly_chart(fig_sec, use_container_width=True)
-                st.caption("**Figure 17.** Monthly 8-K cybersecurity incident disclosures. Source: SEC EDGAR EFTS API (efts.sec.gov). Filings began Dec 2023 per SEC Rule 33-11216.")
+                st.plotly_chart(_fix_chart(fig_sec), use_container_width=True)
+                _caption("**Figure 17.** Monthly 8-K cybersecurity incident disclosures. Source: SEC EDGAR EFTS API (efts.sec.gov). Filings began Dec 2023 per SEC Rule 33-11216.")
 
             show_sec_cols = [c for c in ["entity_name", "file_date", "period_of_report", "business_location"] if c in sec_df.columns]
             st.dataframe(sec_df[show_sec_cols].sort_values("file_date", ascending=False) if "file_date" in sec_df.columns else sec_df[show_sec_cols],
@@ -1867,7 +1966,7 @@ elif page == "📡  Data Sources":
             },
         ])
         st.dataframe(strategy_data, use_container_width=True, hide_index=True)
-        st.caption("Table 1. Data collection strategy per source. All sources use @st.cache_data(ttl=N) to enforce TTL caching and avoid excessive API calls. User-Agent header identifies the platform per SEC EDGAR requirements.")
+        _caption("Table 1. Data collection strategy per source. All sources use @st.cache_data(ttl=N) to enforce TTL caching and avoid excessive API calls. User-Agent header identifies the platform per SEC EDGAR requirements.")
 
         st.markdown("""
         <div class="card" style="border-left:5px solid #2E86AB; margin-top:16px">
@@ -1944,7 +2043,7 @@ elif page == "📡  Data Sources":
             },
         ])
         st.dataframe(meta_data, use_container_width=True, hide_index=True)
-        st.caption("Table 2. Per-source metadata summary and minimum dataset expectations.")
+        _caption("Table 2. Per-source metadata summary and minimum dataset expectations.")
 
         st.markdown('<div class="sub-header">Minimum Data Expectations — Justification</div>', unsafe_allow_html=True)
         st.markdown("""
@@ -2252,7 +2351,7 @@ elif page == "⚖️  Ethics & Security":
             },
         ])
         st.dataframe(ethics_data, use_container_width=True, hide_index=True)
-        st.caption("Table 3. Legal and ethical classification per data source. TLP = Traffic Light Protocol (FIRST.org). All sources are TLP:WHITE — unrestricted sharing for defensive purposes.")
+        _caption("Table 3. Legal and ethical classification per data source. TLP = Traffic Light Protocol (FIRST.org). All sources are TLP:WHITE — unrestricted sharing for defensive purposes.")
 
         st.markdown('<div class="sub-header">Data Privacy Handling Policy</div>', unsafe_allow_html=True)
         st.markdown("""
@@ -2343,7 +2442,7 @@ plotly>=5.20.0
 requests>=2.31.0
 python-dateutil>=2.9.0"""
         st.code(requirements_content, language="text")
-        st.caption("Pin these minimum versions to ensure reproducibility across team members' environments.")
+    _caption("Pin these minimum versions to ensure reproducibility across team members' environments.")
 
 # ─────────────────────────────────────────────
 # SEPARATOR (M2 nav divider — no content)
