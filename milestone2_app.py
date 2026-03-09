@@ -328,27 +328,60 @@ def filter_ransomware_finance(df):
 def fetch_threatfox(days: int = 7):
     """
     ThreatFox IOC database (abuse.ch) — malware-tagged indicators of compromise.
-    Endpoint: POST https://threatfox-api.abuse.ch/api/v1/  {"query": "get_iocs", "days": N}
-    Fields: ioc, ioc_type, threat_type, malware, malware_printable, first_seen, tags, reporter
+    Endpoint: https://threatfox.abuse.ch/export/csv/recent/  (CSV, no API key required)
+    Note: The JSON API endpoint now requires an auth key; the public CSV export is free.
+    Fields: ioc (ioc_value), ioc_type, threat_type, malware_printable, first_seen, tags, reporter
     TLP: WHITE — free OSINT, no API key required.
     Update frequency: continuously (new IOCs submitted by community).
     """
     try:
-        payload = {"query": "get_iocs", "days": days}
-        r = requests.post(
-            "https://threatfox-api.abuse.ch/api/v1/",
-            json=payload,
+        r = requests.get(
+            "https://threatfox.abuse.ch/export/csv/recent/",
             timeout=20,
             headers={"User-Agent": "GFI-CTI-Platform/2.0 (CIS8684 Academic Research)"}
         )
         r.raise_for_status()
-        result = r.json()
-        if result.get("query_status") == "ok" and result.get("data"):
-            df = pd.DataFrame(result["data"])
-            if "first_seen" in df.columns:
-                df["first_seen"] = pd.to_datetime(df["first_seen"], errors="coerce")
-            return df
-        return pd.DataFrame()
+        lines = r.text.splitlines()
+
+        # The column header lives inside a comment line: '# "col1","col2",...'
+        header_line = None
+        data_lines = []
+        for line in lines:
+            if line.startswith('# "') and header_line is None:
+                header_line = line[2:].strip()   # strip leading '# '
+            elif not line.startswith("#") and line.strip():
+                data_lines.append(line)
+
+        if header_line is None or not data_lines:
+            return pd.DataFrame()
+
+        from io import StringIO
+        # The CSV uses ', ' (comma-space) as the separator and wraps every value
+        # in double-quotes; use sep=r',\s*' with python engine to handle it correctly
+        csv_text = header_line + "\n" + "\n".join(data_lines)
+        df = pd.read_csv(
+            StringIO(csv_text),
+            sep=r",\s*",
+            engine="python",
+            quotechar='"',
+            on_bad_lines="skip",
+        )
+        # Strip any residual quote characters from column names and string values
+        df.columns = [c.strip().strip('"').lower() for c in df.columns]
+        for col in df.select_dtypes(include="object").columns:
+            df[col] = df[col].str.strip().str.strip('"')
+
+        # Rename CSV column names to match app expectations
+        df.rename(columns={
+            "ioc_value": "ioc",
+            "first_seen_utc": "first_seen",
+            "fk_malware": "malware",
+        }, inplace=True)
+
+        if "first_seen" in df.columns:
+            df["first_seen"] = pd.to_datetime(df["first_seen"], errors="coerce")
+
+        return df
     except Exception:
         return pd.DataFrame()
 
@@ -384,13 +417,30 @@ def fetch_sec_edgar(query: str = "material cybersecurity incident", start_date: 
         records = []
         for h in hits:
             src = h.get("_source", {})
+            # EDGAR EFTS _source uses: display_names (list), file_date, form/file_type,
+            # biz_locations (list), inc_states (list), period_ending
+            raw_names = src.get("display_names", [])
+            # display_names entries look like "GLOBE LIFE INC.  (GL, GL-PD)  (CIK 0000320335)"
+            # — keep just the company name (text before first parenthesis)
+            if raw_names:
+                entity = raw_names[0].split("(")[0].strip()
+            else:
+                entity = src.get("entity_name", "—")   # fallback for old response shape
+
+            biz_locs = src.get("biz_locations", [])
+            business_location = biz_locs[0] if biz_locs else "—"
+
+            inc_states_raw = src.get("inc_states", [])
+            inc_state = inc_states_raw[0] if isinstance(inc_states_raw, list) and inc_states_raw else (
+                inc_states_raw if isinstance(inc_states_raw, str) else "—")
+
             records.append({
-                "entity_name":       src.get("entity_name", "—"),
+                "entity_name":       entity,
                 "file_date":         src.get("file_date", "—"),
-                "period_of_report":  src.get("period_of_report", "—"),
-                "form_type":         src.get("form_type", "8-K"),
-                "business_location": src.get("biz_location", "—"),
-                "inc_states":        src.get("inc_states", "—"),
+                "period_of_report":  src.get("period_ending", src.get("period_of_report", "—")),
+                "form_type":         src.get("form", src.get("file_type", "8-K")),
+                "business_location": business_location,
+                "inc_states":        inc_state,
             })
         df = pd.DataFrame(records)
         df["file_date"] = pd.to_datetime(df["file_date"], errors="coerce")
