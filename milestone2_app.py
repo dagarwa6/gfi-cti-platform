@@ -269,7 +269,7 @@ def fetch_ransomware_live():
     try:
         r = requests.get(
             "https://api.ransomware.live/v2/recentvictims",
-            timeout=20,
+            timeout=8,   # short timeout so a failed fetch doesn't block page re-renders
             headers={
                 "User-Agent": "GFI-CTI-Platform/2.0 (CIS8684 Academic Research)",
                 "Accept": "application/json",
@@ -2132,12 +2132,14 @@ elif page == "🔍  Data Explorer":
     else:
         for src_name in selected_sources:
             st.markdown(f'<div class="sub-header">{src_name}</div>', unsafe_allow_html=True)
-            exp_col1, exp_col2 = st.columns([1, 2])
+            # NOTE: st.columns() is created INSIDE each source's data-available block so
+            # that empty ghost columns are never rendered when an API is down.
 
             # ── FEODO TRACKER ────────────────────────────────────────────────
             if src_name == "Feodo Tracker (C2 IPs)":
                 feodo_exp = fetch_feodo()
                 if not feodo_exp.empty:
+                    exp_col1, exp_col2 = st.columns([1, 2])
                     with exp_col1:
                         st.markdown("**Filters**")
                         if 'malware' in feodo_exp.columns:
@@ -2180,6 +2182,7 @@ elif page == "🔍  Data Explorer":
             elif src_name == "Ransomware.live (Victims)":
                 rw_exp = fetch_ransomware_live()
                 if not rw_exp.empty:
+                    exp_col1, exp_col2 = st.columns([1, 2])
                     with exp_col1:
                         st.markdown("**Filters**")
                         show_finance_only = st.checkbox("Financial sector only", value=False, key="rw_fin")
@@ -2218,6 +2221,7 @@ elif page == "🔍  Data Explorer":
             elif src_name == "ThreatFox (IOCs)":
                 tf_exp = fetch_threatfox(days=7)
                 if not tf_exp.empty:
+                    exp_col1, exp_col2 = st.columns([1, 2])
                     with exp_col1:
                         st.markdown("**Filters**")
                         if 'ioc_type' in tf_exp.columns:
@@ -2254,6 +2258,7 @@ elif page == "🔍  Data Explorer":
             elif src_name == "SEC EDGAR 8-K (Disclosures)":
                 sec_exp = fetch_sec_edgar()
                 if not sec_exp.empty:
+                    exp_col1, exp_col2 = st.columns([1, 2])
                     with exp_col1:
                         st.markdown("**Filters**")
                         if 'file_date' in sec_exp.columns:
@@ -2293,6 +2298,7 @@ elif page == "🔍  Data Explorer":
                 kev_exp = fetch_kev()
                 fin_kev_exp = filter_kev_finance(kev_exp)
                 if not kev_exp.empty:
+                    exp_col1, exp_col2 = st.columns([1, 2])
                     with exp_col1:
                         st.markdown("**Filters**")
                         finance_only_kev = st.checkbox("Financial-sector vendors only", value=True, key="kev_fin")
@@ -2326,6 +2332,7 @@ elif page == "🔍  Data Explorer":
             elif src_name == "EPSS (Exploitation Scores)":
                 epss_exp = fetch_epss_top()
                 if not epss_exp.empty:
+                    exp_col1, exp_col2 = st.columns([1, 2])
                     with exp_col1:
                         st.markdown("**Filters**")
                         min_epss = st.slider("Minimum EPSS score", 0.0, 1.0, 0.1, 0.05, key="epss_min")
