@@ -1380,7 +1380,7 @@ elif page == "📊  Live Dashboard":
             "(https://www.cisa.gov/known-exploited-vulnerabilities-catalog). Updated hourly."
             )
     else:
-        st.warning("⚠️ KEV API unavailable. Check your internet connection.")
+        st.warning("⚠️ CISA KEV API temporarily unreachable — source: `cisa.gov/…/known_exploited_vulnerabilities.json`. Please refresh the page or try again in a few minutes.")
 
     # ── KEV table (updates based on filter) ──
     st.markdown('<div class="sub-header">Financial-Sector KEV Detail View</div>', unsafe_allow_html=True)
@@ -1423,7 +1423,7 @@ elif page == "📊  Live Dashboard":
         top_epss["Percentile"] = top_epss["Percentile"].map("{:.1%}".format)
         st.dataframe(top_epss, use_container_width=True, hide_index=True)
     else:
-        st.warning("⚠️ EPSS API unavailable.")
+        st.warning("⚠️ EPSS API temporarily unreachable — source: `api.first.org/data/v1/epss`. Please refresh the page or try again in a few minutes.")
 
     # ── Vendor distribution bar ──
     st.markdown('<div class="sub-header">Top Vendors in Financial-Sector KEV</div>', unsafe_allow_html=True)
@@ -2174,7 +2174,7 @@ elif page == "🔍  Data Explorer":
                         show_fe_cols = [c for c in ["ip_address", "port", "malware", "status", "country", "last_online"] if c in filtered_fe.columns]
                         st.dataframe(filtered_fe[show_fe_cols].head(20), use_container_width=True, hide_index=True)
                 else:
-                    st.warning("⚠️ Feodo Tracker data unavailable.")
+                    st.warning("⚠️ Feodo Tracker temporarily unreachable — source: `feodotracker.abuse.ch/downloads/ipblocklist.csv`. This is a live external feed; please refresh the page or try again in a few minutes.")
 
             # ── RANSOMWARE.LIVE ──────────────────────────────────────────────
             elif src_name == "Ransomware.live (Victims)":
@@ -2212,7 +2212,7 @@ elif page == "🔍  Data Explorer":
                         rw_show_cols = [c for c in ["victim", "group", "discovered", "country", "description"] if c in filtered_rw.columns]
                         st.dataframe(filtered_rw[rw_show_cols].head(20), use_container_width=True, hide_index=True)
                 else:
-                    st.warning("⚠️ Ransomware.live data unavailable.")
+                    st.warning("⚠️ Ransomware.live API temporarily unreachable — source: `api.ransomware.live/v2/recentvictims`. This is a live external feed with occasional downtime. Please refresh the page or try again shortly.")
 
             # ── THREATFOX ────────────────────────────────────────────────────
             elif src_name == "ThreatFox (IOCs)":
@@ -2248,7 +2248,7 @@ elif page == "🔍  Data Explorer":
                         tf_show_cols = [c for c in ["ioc", "ioc_type", "malware_printable", "threat_type", "first_seen"] if c in filtered_tf.columns]
                         st.dataframe(filtered_tf[tf_show_cols].head(20), use_container_width=True, hide_index=True)
                 else:
-                    st.warning("⚠️ ThreatFox data unavailable.")
+                    st.warning("⚠️ ThreatFox temporarily unreachable — source: `threatfox.abuse.ch/export/csv/recent/`. Please refresh the page or try again in a few minutes.")
 
             # ── SEC EDGAR ────────────────────────────────────────────────────
             elif src_name == "SEC EDGAR 8-K (Disclosures)":
@@ -2286,7 +2286,7 @@ elif page == "🔍  Data Explorer":
                         sec_show_cols = [c for c in ["entity_name", "file_date", "period_of_report", "business_location"] if c in filtered_sec.columns]
                         st.dataframe(filtered_sec[sec_show_cols].head(20), use_container_width=True, hide_index=True)
                 else:
-                    st.warning("⚠️ SEC EDGAR data unavailable.")
+                    st.warning("⚠️ SEC EDGAR temporarily unreachable — source: `efts.sec.gov/LATEST/search-index`. Please refresh the page or try again in a few minutes.")
 
             # ── CISA KEV ─────────────────────────────────────────────────────
             elif src_name == "CISA KEV (Vulnerabilities)":
@@ -2320,7 +2320,7 @@ elif page == "🔍  Data Explorer":
                         kev_show_cols = [c for c in ["cveID", "vendorProject", "product", "vulnerabilityName", "dateAdded", "knownRansomwareCampaignUse"] if c in filtered_kev.columns]
                         st.dataframe(filtered_kev[kev_show_cols].head(20), use_container_width=True, hide_index=True)
                 else:
-                    st.warning("⚠️ CISA KEV data unavailable.")
+                    st.warning("⚠️ CISA KEV temporarily unreachable — source: `cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`. Please refresh the page or try again in a few minutes.")
 
             # ── EPSS ─────────────────────────────────────────────────────────
             elif src_name == "EPSS (Exploitation Scores)":
@@ -2343,7 +2343,7 @@ elif page == "🔍  Data Explorer":
                         epss_show_cols = [c for c in ["cve", "epss", "percentile"] if c in filtered_epss.columns]
                         st.dataframe(filtered_epss[epss_show_cols], use_container_width=True, hide_index=True)
                 else:
-                    st.warning("⚠️ EPSS data unavailable.")
+                    st.warning("⚠️ EPSS temporarily unreachable — source: `api.first.org/data/v1/epss`. Please refresh the page or try again in a few minutes.")
 
             st.divider()
 
