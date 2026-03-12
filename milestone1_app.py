@@ -54,6 +54,19 @@ def _fix_chart(fig):
         paper_bgcolor=_CHART_BG,
         plot_bgcolor=_CHART_PLOT,
     )
+    # ── colour-bar labels on continuous-colour charts ──
+    fig.update_coloraxes(
+        colorbar_tickfont_color=_CHART_TEXT,
+        colorbar_title_font_color=_CHART_TEXT,
+    )
+    # ── annotation text (vlines, hlines, etc.) ──
+    for ann in list(fig.layout.annotations):
+        if not ann.font or not ann.font.color:
+            ann.update(font_color=_CHART_TEXT)
+    # ── bar value labels ──
+    fig.update_traces(textfont_color=_CHART_TEXT, selector=dict(type="bar"))
+    # ── pie / donut outside labels ──
+    fig.update_traces(outsidetextfont_color=_CHART_TEXT, selector=dict(type="pie"))
     return fig
 
 def _caption(text: str):

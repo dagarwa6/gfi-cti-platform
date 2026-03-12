@@ -25,8 +25,61 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import re
 import requests
 import streamlit as st
+
+# ─────────────────────────────────────────────
+# CHART HELPER — dark-themed charts to match app
+# ─────────────────────────────────────────────
+_CHART_BG    = "#0F1923"
+_CHART_PLOT  = "#162032"
+_CHART_GRID  = "#2D3748"
+_CHART_TEXT  = "#E2E8F0"
+_CHART_TITLE = "#FFFFFF"
+
+def _fix_chart(fig):
+    """Switch every chart to a dark theme consistent with the app."""
+    fig.update_xaxes(
+        color=_CHART_TEXT,
+        tickfont=dict(color=_CHART_TEXT, family="Calibri"),
+        title_font=dict(color=_CHART_TEXT, family="Calibri"),
+        gridcolor=_CHART_GRID, linecolor=_CHART_GRID, zerolinecolor=_CHART_GRID,
+    )
+    fig.update_yaxes(
+        color=_CHART_TEXT,
+        tickfont=dict(color=_CHART_TEXT, family="Calibri"),
+        title_font=dict(color=_CHART_TEXT, family="Calibri"),
+        gridcolor=_CHART_GRID, linecolor=_CHART_GRID, zerolinecolor=_CHART_GRID,
+    )
+    fig.update_layout(
+        font=dict(color=_CHART_TEXT, family="Calibri"),
+        title_font=dict(color=_CHART_TITLE, family="Calibri", size=14),
+        legend=dict(font=dict(color=_CHART_TEXT, family="Calibri"),
+                    title_font=dict(color=_CHART_TEXT),
+                    bgcolor="rgba(15,25,35,0.6)", bordercolor=_CHART_GRID),
+        paper_bgcolor=_CHART_BG,
+        plot_bgcolor=_CHART_PLOT,
+    )
+    fig.update_coloraxes(
+        colorbar_tickfont_color=_CHART_TEXT,
+        colorbar_title_font_color=_CHART_TEXT,
+    )
+    for ann in list(fig.layout.annotations):
+        if not ann.font or not ann.font.color:
+            ann.update(font_color=_CHART_TEXT)
+    fig.update_traces(textfont_color=_CHART_TEXT, selector=dict(type="bar"))
+    fig.update_traces(outsidetextfont_color=_CHART_TEXT, selector=dict(type="pie"))
+    return fig
+
+def _caption(text: str):
+    """Render a figure caption with guaranteed visibility in dark mode."""
+    html = re.sub(r'\*\*(.+?)\*\*', r'<strong style="color:#CBD5E0">\1</strong>', text)
+    st.markdown(
+        f'<p style="color:#A0AEC0;font-size:0.82rem;'
+        f'margin-top:2px;margin-bottom:14px;line-height:1.5">{html}</p>',
+        unsafe_allow_html=True,
+    )
 
 # ─────────────────────────────────────────────
 # PAGE CONFIG & GLOBAL STYLE
@@ -790,7 +843,7 @@ elif page == "📈  Threat Trends & Assets":
         xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"),
         font=dict(family="Calibri"),
     )
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(_fix_chart(fig_trend), use_container_width=True)
     st.caption(
         "**Figure 1.** Threat category incident index (2019–2025). Global index normalized from: "
         "SonicWall Cyber Threat Report 2024 (Ransomware); abuse.ch Feodo Tracker (Banking Trojans); "
@@ -932,7 +985,7 @@ elif page == "📈  Threat Trends & Assets":
         )
         fig_hm.update_layout(height=280, font=dict(family="Calibri"),
                               plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF")
-        st.plotly_chart(fig_hm, use_container_width=True)
+        st.plotly_chart(_fix_chart(fig_hm), use_container_width=True)
         st.caption(
             "**Figure 2.** Financial sector threat intensity heatmap by category and year (2019–2025). "
             "Values derived from real_trends() data; darker cells indicate higher incident index. "
@@ -1026,7 +1079,7 @@ elif page == "📈  Threat Trends & Assets":
                             font=dict(family="Calibri"),
                             plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                             coloraxis_showscale=False)
-    st.plotly_chart(fig_asset, use_container_width=True)
+    st.plotly_chart(_fix_chart(fig_asset), use_container_width=True)
     st.caption(
         "**Figure 3.** Critical asset ranking by weighted criticality score (Financial × Reputational × Operational impact). "
         "Asset definitions derived from SWIFT CSCF v2024, FFIEC Cybersecurity Assessment Tool, and FSOC Annual Report 2024. "
@@ -1061,7 +1114,7 @@ elif page == "📈  Threat Trends & Assets":
     fig_exp.update_layout(height=320, font=dict(family="Calibri"),
                           paper_bgcolor="#FFFFFF",
                           xaxis=dict(tickangle=-35))
-    st.plotly_chart(fig_exp, use_container_width=True)
+    st.plotly_chart(_fix_chart(fig_exp), use_container_width=True)
     st.caption(
         "**Figure 4.** Threat-to-asset exposure matrix. Scores (0–1) reflect expert-assessed relative exposure; "
         "high-confidence anchors (e.g., Nation-State → SWIFT = 0.97) sourced from SWIFT CSCF, CISA advisories, and ENISA TIBER-EU 2024. "
@@ -1102,7 +1155,7 @@ elif page == "📈  Threat Trends & Assets":
                 xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0", range=[0, 1.05]),
                 legend_title="Threat Category",
             )
-            st.plotly_chart(fig_ss, use_container_width=True)
+            st.plotly_chart(_fix_chart(fig_ss), use_container_width=True)
             st.caption(
                 "**Figure 5.** Sub-sector relative threat risk scores (0 = Low, 1 = High). "
                 "Scores sourced from ENISA TIBER-EU sector threat assessments, Verizon DBIR 2024 industry verticals, "
@@ -1230,7 +1283,7 @@ elif page == "💎  Diamond Models":
         plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
         margin=dict(l=20, r=20, t=20, b=20),
     )
-    st.plotly_chart(fig_dm, use_container_width=True)
+    st.plotly_chart(_fix_chart(fig_dm), use_container_width=True)
     st.caption(
         "**Figure 6.** Diamond Model visualization — Adversary, Capability, Infrastructure, Victim nodes. "
         "Framework: Caltagirone, Pendergast & Betz (2013), 'The Diamond Model of Intrusion Analysis,' CTI Technical Report. "
@@ -1333,7 +1386,7 @@ elif page == "📊  Live Dashboard":
             plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
             xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"),
         )
-        st.plotly_chart(fig_kev_time, use_container_width=True)
+        st.plotly_chart(_fix_chart(fig_kev_time), use_container_width=True)
         st.caption(
             f"**Figure 7.** Monthly CISA KEV additions for financial-sector vendors — {selected_vendor}. "
             "Live data fetched from CISA Known Exploited Vulnerabilities catalog "
@@ -1366,7 +1419,7 @@ elif page == "📊  Live Dashboard":
                                 plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                 xaxis_title="EPSS Score", yaxis_title="Count",
                                 xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"))
-        st.plotly_chart(fig_epss, use_container_width=True)
+        st.plotly_chart(_fix_chart(fig_epss), use_container_width=True)
         st.caption(
             "**Figure 8.** EPSS score distribution — probability that a CVE will be exploited in the wild within 30 days. "
             "Live data from FIRST.org EPSS API v3 (https://api.first.org/). "
@@ -1402,7 +1455,7 @@ elif page == "📊  Live Dashboard":
         fig_vendor.update_layout(height=320, font=dict(family="Calibri"),
                                   plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                   coloraxis_showscale=False, xaxis_tickangle=-30)
-        st.plotly_chart(fig_vendor, use_container_width=True)
+        st.plotly_chart(_fix_chart(fig_vendor), use_container_width=True)
         st.caption(
             "**Figure 9.** Top vendors by CISA KEV count in the financial-sector filtered catalog. "
             "Vendor filter applied from FINANCE_VENDORS list (Oracle, SAP, Cisco, Microsoft, etc.). "
@@ -1446,7 +1499,7 @@ elif page == "💼  Intelligence Buy-In":
         plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
         xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"),
     )
-    st.plotly_chart(fig_breach, use_container_width=True)
+    st.plotly_chart(_fix_chart(fig_breach), use_container_width=True)
     st.caption(
         "**Figure 10.** Average data breach cost by sector (USD millions), 2019–2024. "
         "Financial sector and global average: IBM Cost of a Data Breach Report 2019–2024. "
@@ -1465,7 +1518,7 @@ elif page == "💼  Intelligence Buy-In":
                           color_discrete_sequence=["#C0392B", "#C9A017", "#2E86AB"],
                           title="Financial Firms — Breach Frequency (2024)")
         fig_freq.update_layout(height=320, font=dict(family="Calibri"))
-        st.plotly_chart(fig_freq, use_container_width=True)
+        st.plotly_chart(_fix_chart(fig_freq), use_container_width=True)
         st.caption(
             "**Figure 11.** Financial institution breach frequency (2024). "
             "Source: Verizon DBIR 2024 — Financial & Insurance industry vertical; "
@@ -1620,7 +1673,7 @@ elif page == "📡  Data Sources":
                 fig_feodo_mal.update_layout(height=300, font=dict(family="Calibri"),
                                             plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                             coloraxis_showscale=False)
-                st.plotly_chart(fig_feodo_mal, use_container_width=True)
+                st.plotly_chart(_fix_chart(fig_feodo_mal), use_container_width=True)
                 st.caption("**Figure 12.** Active C2 count per banking trojan family. Source: abuse.ch Feodo Tracker live API (feodotracker.abuse.ch). Emotet/QakBot/Dridex/TrickBot/BazarLoader are the dominant banking trojans targeting GFI. Updated every 5 minutes.")
 
             # Country heatmap
@@ -1636,7 +1689,7 @@ elif page == "📡  Data Sources":
                 fig_feodo_geo.update_layout(height=280, font=dict(family="Calibri"),
                                             plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                             coloraxis_showscale=False)
-                st.plotly_chart(fig_feodo_geo, use_container_width=True)
+                st.plotly_chart(_fix_chart(fig_feodo_geo), use_container_width=True)
                 st.caption("**Figure 13.** C2 hosting country distribution from Feodo Tracker. Bullet-proof hosting jurisdictions (RU, NL, DE, US) dominate. Source: abuse.ch Feodo Tracker live API.")
 
             # Sample records
@@ -1725,7 +1778,7 @@ elif page == "📡  Data Sources":
                                              yaxis=dict(autorange="reversed"),
                                              plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                              coloraxis_showscale=False)
-                    st.plotly_chart(fig_rw_grp, use_container_width=True)
+                    st.plotly_chart(_fix_chart(fig_rw_grp), use_container_width=True)
                     st.caption("**Figure 14.** Top ransomware groups by recent victim count. Source: ransomware.live API (live). Financial sector victims highlighted separately.")
 
             with col_rw2:
@@ -1741,7 +1794,7 @@ elif page == "📡  Data Sources":
                                               yaxis=dict(autorange="reversed"),
                                               plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                               coloraxis_showscale=False)
-                    st.plotly_chart(fig_rw_ctry, use_container_width=True)
+                    st.plotly_chart(_fix_chart(fig_rw_ctry), use_container_width=True)
                     st.caption("**Figure 15.** Ransomware victim distribution by country. Source: ransomware.live API (live). US dominates due to reporting and firm concentration.")
 
             st.markdown("**Financial-Sector Victims (Keyword-Filtered)**")
@@ -1818,7 +1871,7 @@ elif page == "📡  Data Sources":
                                 title=f"ThreatFox IOC Type Breakdown (last {tf_days} days)",
                                 color_discrete_sequence=["#1E3A5F", "#C9A017", "#2E86AB", "#C0392B", "#6B5B95"])
                 fig_tf.update_layout(height=300, font=dict(family="Calibri"))
-                st.plotly_chart(fig_tf, use_container_width=True)
+                st.plotly_chart(_fix_chart(fig_tf), use_container_width=True)
                 st.caption(f"**Figure 16.** ThreatFox IOC type distribution (last {tf_days} days). Source: abuse.ch ThreatFox API. IP:Port dominates — consistent with C2 infrastructure profiles for banking trojans.")
 
             show_tf_cols = [c for c in ["ioc", "ioc_type", "malware_printable", "threat_type", "first_seen", "tags"] if c in tf_df.columns]
@@ -1891,7 +1944,7 @@ elif page == "📡  Data Sources":
                 fig_sec.update_layout(height=300, font=dict(family="Calibri"),
                                       plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                       xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"))
-                st.plotly_chart(fig_sec, use_container_width=True)
+                st.plotly_chart(_fix_chart(fig_sec), use_container_width=True)
                 st.caption("**Figure 17.** Monthly 8-K cybersecurity incident disclosures. Source: SEC EDGAR EFTS API (efts.sec.gov). Filings began Dec 2023 per SEC Rule 33-11216.")
 
             show_sec_cols = [c for c in ["entity_name", "file_date", "period_of_report", "business_location"] if c in sec_df.columns]
@@ -2541,7 +2594,7 @@ elif page == "🚨  Triage Dashboard":
                 height=520, yaxis=dict(autorange="reversed"),
                 font=dict(family="Calibri"), plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
             )
-            st.plotly_chart(fig_triage, use_container_width=True)
+            st.plotly_chart(_fix_chart(fig_triage), use_container_width=True)
             st.caption("**Figure 24.** ELO-ranked operational triage queue. Red = CRITICAL (patch ≤24h), Orange = HIGH (≤72h), Gold = MEDIUM (≤14 days). Source: CISA KEV + EPSS (live APIs) + GFI-ELO scoring engine.")
 
         # ── Alert detail table ────────────────────────────────────────────────
@@ -3000,7 +3053,7 @@ elif page == "📐  Analytics":
                 font=dict(family="Calibri"), coloraxis_showscale=False,
                 plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
             )
-            st.plotly_chart(fig_elo, use_container_width=True)
+            st.plotly_chart(_fix_chart(fig_elo), use_container_width=True)
             st.caption("**Figure 18.** Top 20 CVEs by GFI-Context ELO Score. ELO integrates CVSS severity, EPSS exploitation probability, KEV ground truth, and ransomware campaign signals with user-tunable K-factors. Higher ELO = higher contextual priority for GFI patch operations. Source: CISA KEV + EPSS (live APIs).")
 
             # ELO vs EPSS scatter
@@ -3014,7 +3067,7 @@ elif page == "📐  Analytics":
             )
             fig_scatter.update_layout(height=380, font=dict(family="Calibri"),
                                       plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF")
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            st.plotly_chart(_fix_chart(fig_scatter), use_container_width=True)
             st.caption("**Figure 19.** CVE-ELO vs EPSS scatter. Ransomware-associated CVEs (red) cluster in the high-ELO zone. CVEs with low EPSS but high ELO are KEV-confirmed with active ransomware use — these represent the highest-priority patch targets. Source: CISA KEV + EPSS (live APIs).")
 
             # Table view
@@ -3081,7 +3134,7 @@ elif page == "📐  Analytics":
             font=dict(family="Calibri"), coloraxis_showscale=False,
             plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
         )
-        st.plotly_chart(fig_actor_elo, use_container_width=True)
+        st.plotly_chart(_fix_chart(fig_actor_elo), use_container_width=True)
         st.caption("**Figure 20.** Threat Actor ELO leaderboard. Actor-ELO integrates MITRE ATT&CK TTP breadth, live Feodo Tracker C2 counts, finance-sector targeting history, and 90-day activity recency. K-factors controlled by sidebar sliders. Sources: MITRE ATT&CK Enterprise, abuse.ch Feodo Tracker, CISA/FBI advisories.")
 
         st.dataframe(actor_df[["Actor", "Actor_ELO", "TTP_count", "C2_count", "active_90d", "Notable"]].rename(columns={"TTP_count": "TTP Count", "C2_count": "Live C2s (Feodo)", "active_90d": "Active ≤90d"}),
@@ -3142,7 +3195,7 @@ elif page == "📐  Analytics":
                 fig_ip.update_layout(height=max(280, elo_top_n*22), yaxis=dict(autorange="reversed"),
                                      font=dict(family="Calibri"), coloraxis_showscale=False,
                                      plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF")
-                st.plotly_chart(fig_ip, use_container_width=True)
+                st.plotly_chart(_fix_chart(fig_ip), use_container_width=True)
             elif elo_chart_type == "Scatter Plot" and not filtered_ip.empty:
                 fig_ip_s = px.scatter(filtered_ip, x="epss", y="CVE_ELO", hover_name="cveID",
                                       color=is_rw_ip[filtered_ip.index].map({True:"Ransomware",False:"Other"}),
@@ -3150,7 +3203,7 @@ elif page == "📐  Analytics":
                                       title="ELO vs EPSS (filtered view)")
                 fig_ip_s.update_layout(height=360, font=dict(family="Calibri"),
                                        plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF")
-                st.plotly_chart(fig_ip_s, use_container_width=True)
+                st.plotly_chart(_fix_chart(fig_ip_s), use_container_width=True)
 
             show_cols_ip = [c for c in ["cveID","vendorProject","CVE_ELO","epss","knownRansomwareCampaignUse"] if c in filtered_ip.columns]
             st.dataframe(filtered_ip[show_cols_ip], use_container_width=True, hide_index=True)
@@ -3209,7 +3262,7 @@ elif page == "📐  Analytics":
                 xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02),
             )
-            st.plotly_chart(fig_ts, use_container_width=True)
+            st.plotly_chart(_fix_chart(fig_ts), use_container_width=True)
             st.caption("**Figure 21.** CISA KEV monthly addition rates with rolling 6-month mean and z-score anomaly flags (|z| > 2.0, red stars). Anomalous months correspond to major exploitation campaigns (e.g., MOVEit June 2023, Citrix December 2023). Method: rolling z-score (Chandola et al., 2009). Source: CISA KEV live API.")
 
             if not anomaly_rows.empty:
@@ -3235,7 +3288,7 @@ elif page == "📐  Analytics":
             fig_rw_ts.update_layout(height=280, font=dict(family="Calibri"),
                                     plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF",
                                     xaxis=dict(gridcolor="#E2E8F0"), yaxis=dict(gridcolor="#E2E8F0"))
-            st.plotly_chart(fig_rw_ts, use_container_width=True)
+            st.plotly_chart(_fix_chart(fig_rw_ts), use_container_width=True)
             st.caption("**Figure 22.** Daily ransomware victim posts from ransomware.live API (recent 30-day window). Spikes in daily victim counts indicate active campaigns. Source: ransomware.live API (live).")
 
     # ── ADDITIONAL DEPTH: CROSS-SOURCE IOC CORRELATION ───────────────────────
@@ -3289,7 +3342,7 @@ elif page == "📐  Analytics":
                               title="Cross-Source IOC Distribution — Feodo Tracker × ThreatFox")
             fig_venn.update_layout(height=320, showlegend=False, font=dict(family="Calibri"),
                                    plot_bgcolor="#F7F9FC", paper_bgcolor="#FFFFFF")
-            st.plotly_chart(fig_venn, use_container_width=True)
+            st.plotly_chart(_fix_chart(fig_venn), use_container_width=True)
             st.caption("**Figure 23.** Cross-source IOC distribution: Feodo Tracker C2 IPs vs ThreatFox IP:Port IOCs. IPs appearing in both sources (CCS=2, red bar) represent highest-confidence malicious infrastructure — these should be top-priority firewall blocks. Method: set intersection of normalised IP addresses. Sources: abuse.ch Feodo Tracker + ThreatFox (live APIs).")
 
             if overlap:
