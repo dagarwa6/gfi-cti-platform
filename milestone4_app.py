@@ -96,6 +96,25 @@ st.markdown("""
 /* ── Global typography ───────────────────── */
 html, body, [class*="css"] { font-family: 'Calibri', sans-serif; }
 
+/* ── Figure captions ─────────────────────── */
+div[data-testid="stCaptionContainer"] p,
+div[data-testid="stCaptionContainer"] {
+    color: #A0AEC0 !important;
+    font-size: 0.82rem !important;
+}
+
+/* ── Metric card text ────────────────────── */
+div[data-testid="metric-container"] label,
+div[data-testid="metric-container"] div {
+    color: #1A202C !important;
+}
+
+/* ── Dataframe header text ───────────────── */
+div[data-testid="stDataFrame"] th {
+    color: #E2E8F0 !important;
+    font-weight: bold !important;
+}
+
 /* ── Sidebar ─────────────────────────────── */
 section[data-testid="stSidebar"] { background-color: #0A1628; }
 section[data-testid="stSidebar"] * { color: #BFD7FF !important; }
@@ -123,7 +142,7 @@ div[data-testid="metric-container"] {
     letter-spacing: 0.03em;
 }
 .sub-header {
-    color: #1E3A5F;
+    color: #BFD7FF;
     border-bottom: 2px solid #C9A017;
     padding-bottom: 4px;
     margin: 20px 0 10px 0;
@@ -136,7 +155,16 @@ div[data-testid="metric-container"] {
     border-radius: 6px;
     padding: 16px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    color: #1A202C !important;
 }
+.card p, .card li, .card small, .card i, .card td, .card th, .card span:not(.gold-tag) {
+    color: #1A202C !important;
+}
+.card b:not([style*="color"]), .card strong:not([style*="color"]) {
+    color: #1A202C !important;
+}
+.card table { width: 100%; border-collapse: collapse; }
+.card td, .card th { padding: 4px 8px; }
 .gold-tag {
     background: #C9A017;
     color: #0A1628;
