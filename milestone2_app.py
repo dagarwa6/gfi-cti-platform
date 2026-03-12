@@ -1602,8 +1602,8 @@ elif page == "📡  Data Sources":
                 <table width="100%">
                     <tr><td><b>Provider</b></td><td>abuse.ch (Swiss non-profit threat intelligence)</td></tr>
                     <tr><td><b>URL</b></td><td>feodotracker.abuse.ch</td></tr>
-                    <tr><td><b>API Endpoint</b></td><td>/downloads/ipblocklist_json.json</td></tr>
-                    <tr><td><b>Format</b></td><td>JSON array</td></tr>
+                    <tr><td><b>API Endpoint</b></td><td>/downloads/ipblocklist.csv</td></tr>
+                    <tr><td><b>Format</b></td><td>CSV</td></tr>
                     <tr><td><b>TLP</b></td><td>WHITE — fully public OSINT</td></tr>
                     <tr><td><b>Update Freq.</b></td><td>Every 5 minutes</td></tr>
                     <tr><td><b>Auth Required</b></td><td>None</td></tr>
@@ -1814,7 +1814,7 @@ elif page == "📡  Data Sources":
                 <b style="color:#6B5B95">📌 Source Profile</b><br><br>
                 <table width="100%">
                     <tr><td><b>Provider</b></td><td>abuse.ch</td></tr>
-                    <tr><td><b>API Endpoint</b></td><td>POST threatfox-api.abuse.ch/api/v1/</td></tr>
+                    <tr><td><b>API Endpoint</b></td><td>GET threatfox.abuse.ch/export/csv/recent/</td></tr>
                     <tr><td><b>IOC Types</b></td><td>IP:Port, Domain, URL, SHA256, MD5</td></tr>
                     <tr><td><b>Malware Tags</b></td><td>QakBot, Emotet, Dridex, Cobalt Strike, etc.</td></tr>
                     <tr><td><b>TLP</b></td><td>WHITE — community-contributed OSINT</td></tr>
@@ -1957,7 +1957,7 @@ elif page == "📡  Data Sources":
             {
                 "Source": "Feodo Tracker",
                 "Method": "GET — REST/JSON",
-                "Endpoint": "feodotracker.abuse.ch/downloads/ipblocklist_json.json",
+                "Endpoint": "feodotracker.abuse.ch/downloads/ipblocklist.csv",
                 "Cache TTL": "60 min",
                 "Timeout": "15 s",
                 "Rate Limit": "None documented (courteous: max 1 req/min)",
@@ -1977,7 +1977,7 @@ elif page == "📡  Data Sources":
             {
                 "Source": "ThreatFox",
                 "Method": "POST — REST/JSON",
-                "Endpoint": "threatfox-api.abuse.ch/api/v1/",
+                "Endpoint": "threatfox.abuse.ch/export/csv/recent/",
                 "Cache TTL": "60 min",
                 "Timeout": "20 s",
                 "Rate Limit": "abuse.ch: max 1 query/minute recommended",
@@ -2041,9 +2041,9 @@ elif page == "📡  Data Sources":
                 "Source": "Feodo Tracker",
                 "Typical Record Count": "500–2,000 active C2 IPs",
                 "Date Coverage": "Rolling — first_seen from 2019 to present",
-                "Key Fields": "ip_address, port, malware, status, first_seen, last_online, country",
+                "Key Fields": "ip_address, port, malware, status, first_seen, last_online",
                 "Update Frequency": "Every 5 minutes",
-                "Format": "JSON array",
+                "Format": "CSV",
                 "Minimum Expectation": "≥ 100 active C2 entries",
             },
             {

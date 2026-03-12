@@ -172,22 +172,33 @@ def filter_kev_finance(df):
 def fetch_feodo():
     """
     Feodo Tracker C2 blocklist (abuse.ch) — banking trojan command-and-control IPs.
-    Endpoint: https://feodotracker.abuse.ch/downloads/ipblocklist_json.json
-    Fields: ip_address, port, status, malware, first_seen, last_online, country
+    Endpoint: https://feodotracker.abuse.ch/downloads/ipblocklist.csv  (CSV, skips # comment lines)
+    Fields: ip_address, port, status, malware, first_seen, last_online
     TLP: WHITE — free OSINT, no API key required.
     Update frequency: every 5 minutes.
+    Note: JSON endpoint was retired; CSV endpoint is the current official download.
     """
     try:
         r = requests.get(
-            "https://feodotracker.abuse.ch/downloads/ipblocklist_json.json",
+            "https://feodotracker.abuse.ch/downloads/ipblocklist.csv",
             timeout=15,
             headers={"User-Agent": "GFI-CTI-Platform/2.0 (CIS8684 Academic Research)"}
         )
         r.raise_for_status()
-        data = r.json()
-        df = pd.DataFrame(data)
-        # Normalise column names
-        df.columns = [c.lower() for c in df.columns]
+        # CSV has comment lines starting with '#' — skip them
+        lines = [l for l in r.text.splitlines() if not l.startswith("#")]
+        from io import StringIO
+        df = pd.read_csv(StringIO("\n".join(lines)))
+        # Normalise column names (strip whitespace, lowercase)
+        df.columns = [c.strip().lower() for c in df.columns]
+        # Remap CSV column names to the names used throughout the app
+        rename_map = {
+            "dst_ip": "ip_address",
+            "dst_port": "port",
+            "c2_status": "status",
+            "first_seen_utc": "first_seen",
+        }
+        df.rename(columns=rename_map, inplace=True)
         for col in ["first_seen", "last_online"]:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors="coerce")
@@ -236,27 +247,58 @@ def filter_ransomware_finance(df):
 def fetch_threatfox(days: int = 7):
     """
     ThreatFox IOC database (abuse.ch) — malware-tagged indicators of compromise.
-    Endpoint: POST https://threatfox-api.abuse.ch/api/v1/  {"query": "get_iocs", "days": N}
-    Fields: ioc, ioc_type, threat_type, malware, malware_printable, first_seen, tags, reporter
+    Endpoint: https://threatfox.abuse.ch/export/csv/recent/  (CSV, no API key required)
+    Note: The JSON API endpoint now requires an auth key; the public CSV export is free.
+    Fields: ioc (ioc_value), ioc_type, threat_type, malware_printable, first_seen, tags, reporter
     TLP: WHITE — free OSINT, no API key required.
     Update frequency: continuously (new IOCs submitted by community).
     """
     try:
-        payload = {"query": "get_iocs", "days": days}
-        r = requests.post(
-            "https://threatfox-api.abuse.ch/api/v1/",
-            json=payload,
+        r = requests.get(
+            "https://threatfox.abuse.ch/export/csv/recent/",
             timeout=20,
             headers={"User-Agent": "GFI-CTI-Platform/2.0 (CIS8684 Academic Research)"}
         )
         r.raise_for_status()
-        result = r.json()
-        if result.get("query_status") == "ok" and result.get("data"):
-            df = pd.DataFrame(result["data"])
-            if "first_seen" in df.columns:
-                df["first_seen"] = pd.to_datetime(df["first_seen"], errors="coerce")
-            return df
-        return pd.DataFrame()
+        lines = r.text.splitlines()
+
+        # The column header lives inside a comment line: '# "col1","col2",...'
+        header_line = None
+        data_lines = []
+        for line in lines:
+            if line.startswith('# "') and header_line is None:
+                header_line = line[2:].strip()   # strip leading '# '
+            elif not line.startswith("#") and line.strip():
+                data_lines.append(line)
+
+        if header_line is None or not data_lines:
+            return pd.DataFrame()
+
+        from io import StringIO
+        csv_text = header_line + "\n" + "\n".join(data_lines)
+        df = pd.read_csv(
+            StringIO(csv_text),
+            sep=r",\s*",
+            engine="python",
+            quotechar='"',
+            on_bad_lines="skip",
+        )
+        # Strip any residual quote characters from column names and string values
+        df.columns = [c.strip().strip('"').lower() for c in df.columns]
+        for col in df.select_dtypes(include="object").columns:
+            df[col] = df[col].str.strip().str.strip('"')
+
+        # Rename CSV column names to match app expectations
+        df.rename(columns={
+            "ioc_value": "ioc",
+            "first_seen_utc": "first_seen",
+            "fk_malware": "malware",
+        }, inplace=True)
+
+        if "first_seen" in df.columns:
+            df["first_seen"] = pd.to_datetime(df["first_seen"], errors="coerce")
+
+        return df
     except Exception:
         return pd.DataFrame()
 
@@ -292,13 +334,30 @@ def fetch_sec_edgar(query: str = "material cybersecurity incident", start_date: 
         records = []
         for h in hits:
             src = h.get("_source", {})
+            # EDGAR EFTS _source uses: display_names (list), file_date, form/file_type,
+            # biz_locations (list), inc_states (list), period_ending
+            raw_names = src.get("display_names", [])
+            # display_names entries look like "GLOBE LIFE INC.  (GL, GL-PD)  (CIK 0000320335)"
+            # — keep just the company name (text before first parenthesis)
+            if raw_names:
+                entity = raw_names[0].split("(")[0].strip()
+            else:
+                entity = src.get("entity_name", "—")   # fallback for old response shape
+
+            biz_locs = src.get("biz_locations", [])
+            business_location = biz_locs[0] if biz_locs else "—"
+
+            inc_states_raw = src.get("inc_states", [])
+            inc_state = inc_states_raw[0] if isinstance(inc_states_raw, list) and inc_states_raw else (
+                inc_states_raw if isinstance(inc_states_raw, str) else "—")
+
             records.append({
-                "entity_name":       src.get("entity_name", "—"),
+                "entity_name":       entity,
                 "file_date":         src.get("file_date", "—"),
-                "period_of_report":  src.get("period_of_report", "—"),
-                "form_type":         src.get("form_type", "8-K"),
-                "business_location": src.get("biz_location", "—"),
-                "inc_states":        src.get("inc_states", "—"),
+                "period_of_report":  src.get("period_ending", src.get("period_of_report", "—")),
+                "form_type":         src.get("form", src.get("file_type", "8-K")),
+                "business_location": business_location,
+                "inc_states":        inc_state,
             })
         df = pd.DataFrame(records)
         df["file_date"] = pd.to_datetime(df["file_date"], errors="coerce")
@@ -1481,8 +1540,8 @@ elif page == "📡  Data Sources":
                 <table width="100%">
                     <tr><td><b>Provider</b></td><td>abuse.ch (Swiss non-profit threat intelligence)</td></tr>
                     <tr><td><b>URL</b></td><td>feodotracker.abuse.ch</td></tr>
-                    <tr><td><b>API Endpoint</b></td><td>/downloads/ipblocklist_json.json</td></tr>
-                    <tr><td><b>Format</b></td><td>JSON array</td></tr>
+                    <tr><td><b>API Endpoint</b></td><td>/downloads/ipblocklist.csv</td></tr>
+                    <tr><td><b>Format</b></td><td>CSV</td></tr>
                     <tr><td><b>TLP</b></td><td>WHITE — fully public OSINT</td></tr>
                     <tr><td><b>Update Freq.</b></td><td>Every 5 minutes</td></tr>
                     <tr><td><b>Auth Required</b></td><td>None</td></tr>
@@ -1693,7 +1752,7 @@ elif page == "📡  Data Sources":
                 <b style="color:#6B5B95">📌 Source Profile</b><br><br>
                 <table width="100%">
                     <tr><td><b>Provider</b></td><td>abuse.ch</td></tr>
-                    <tr><td><b>API Endpoint</b></td><td>POST threatfox-api.abuse.ch/api/v1/</td></tr>
+                    <tr><td><b>API Endpoint</b></td><td>GET threatfox.abuse.ch/export/csv/recent/</td></tr>
                     <tr><td><b>IOC Types</b></td><td>IP:Port, Domain, URL, SHA256, MD5</td></tr>
                     <tr><td><b>Malware Tags</b></td><td>QakBot, Emotet, Dridex, Cobalt Strike, etc.</td></tr>
                     <tr><td><b>TLP</b></td><td>WHITE — community-contributed OSINT</td></tr>
@@ -1835,7 +1894,7 @@ elif page == "📡  Data Sources":
             {
                 "Source": "Feodo Tracker",
                 "Method": "GET — REST/JSON",
-                "Endpoint": "feodotracker.abuse.ch/downloads/ipblocklist_json.json",
+                "Endpoint": "feodotracker.abuse.ch/downloads/ipblocklist.csv",
                 "Cache TTL": "60 min",
                 "Timeout": "15 s",
                 "Rate Limit": "None documented (courteous: max 1 req/min)",
@@ -1855,7 +1914,7 @@ elif page == "📡  Data Sources":
             {
                 "Source": "ThreatFox",
                 "Method": "POST — REST/JSON",
-                "Endpoint": "threatfox-api.abuse.ch/api/v1/",
+                "Endpoint": "threatfox.abuse.ch/export/csv/recent/",
                 "Cache TTL": "60 min",
                 "Timeout": "20 s",
                 "Rate Limit": "abuse.ch: max 1 query/minute recommended",
@@ -1919,9 +1978,9 @@ elif page == "📡  Data Sources":
                 "Source": "Feodo Tracker",
                 "Typical Record Count": "500–2,000 active C2 IPs",
                 "Date Coverage": "Rolling — first_seen from 2019 to present",
-                "Key Fields": "ip_address, port, malware, status, first_seen, last_online, country",
+                "Key Fields": "ip_address, port, malware, status, first_seen, last_online",
                 "Update Frequency": "Every 5 minutes",
-                "Format": "JSON array",
+                "Format": "CSV",
                 "Minimum Expectation": "≥ 100 active C2 entries",
             },
             {
