@@ -1726,14 +1726,12 @@ elif page == "💼  Intelligence Buy-In":
         st.markdown("""
         <div class="card" style="border-left:5px solid #C9A017; min-height:280px; padding:20px">
             <b style="color:#1E3A5F">Shifting Security Strategy</b><br><br>
-            <p>Traditional perimeter-based security is no longer sufficient. The financial sector
-            is shifting to <b>intelligence-led security</b> driven by three realities:</p>
             <ul>
-                <li><b>Assumed breach</b>: Sophisticated adversaries (Lazarus, FIN7) will get in; detection speed matters.</li>
-                <li><b>Mean Time to Identify (MTTI)</b>: Financial firms average <b>194 days</b> to identify a breach without CTI (IBM 2024).</li>
-                <li><b>Regulatory pressure</b>: SEC 4-day disclosure rule and EU DORA mandate faster detection and response capabilities.</li>
+                <li><b>Assumed breach:</b> Adversaries (Lazarus, FIN7) will get in — detection speed matters.</li>
+                <li><b>MTTI:</b> Financial firms average <b>194 days</b> to identify a breach without CTI (IBM 2024).</li>
+                <li><b>Regulatory pressure:</b> SEC 4-day disclosure rule and EU DORA mandate faster response.</li>
             </ul>
-            <p>Organizations with a mature threat intelligence program reduce MTTI by <b>up to 74 days</b>.</p>
+            <p>Mature CTI programs reduce MTTI by <b>up to 74 days</b>.</p>
         </div>""", unsafe_allow_html=True)
 
     # ── ROI calculator ──
@@ -1770,17 +1768,11 @@ elif page == "💼  Intelligence Buy-In":
     <div class="card" style="border-left:5px solid #1E3A5F; padding:20px">
         <b style="font-size:1.05rem">Why This CTI Platform Is a Strategic Necessity</b><br><br>
         <p>
-        At an average breach cost of <b>$6.08M</b>, a single incident costs far more than years of proactive threat intelligence.
-        The financial sector faced a <b>34% breach rate</b> in 2024, and ransomware now accounts for <b>29%</b> of all financial incidents.
-        Nation-state actors like Lazarus Group stole over <b>$1.5B</b> from financial institutions in 2025 alone.
+        At <b>$6.08M</b> per breach and a <b>34% breach rate</b> in finance (2024), proactive CTI pays for itself.
+        Ransomware accounts for <b>29%</b> of financial incidents; Lazarus Group alone stole <b>$1.5B</b> in 2025.
         <br><br>
-        Our CTI platform addresses the core gap: existing solutions are generic, expensive, and do not integrate the
-        malware distribution intelligence (URLhaus + MalwareBazaar), real breach disclosures (SEC EDGAR 8-K), and
-        organizational-context ELO scoring that global financial institutions actually need.
-        <br><br>
-        Intelligence-led security organizations reduce breach identification time by <b>74 days</b> on average,
-        translating to approximately <b>$1.76M in avoided losses per incident</b> — a compelling return on a
-        platform that costs a fraction of that to operate.
+        Our platform fills the gap with malware distribution intelligence (URLhaus + MalwareBazaar), real breach disclosures (SEC EDGAR 8-K),
+        and ELO scoring — reducing breach identification time by <b>74 days</b> (~<b>$1.76M savings per incident</b>).
         </p>
     </div>""", unsafe_allow_html=True)
 
@@ -1827,20 +1819,13 @@ elif page == "📡  Data Sources":
         with col_justify:
             st.markdown("""
             <div class="card" style="border-left:5px solid #C9A017">
-                <b style="color:#C9A017">✔ Justification for GFI CTI Platform</b><br><br>
+                <b style="color:#C9A017">✔ Justification</b><br><br>
                 <p style="font-size:0.9rem">
-                URLhaus is the <b>largest community-driven malicious URL feed</b>, tracking live
-                malware distribution sites used to deliver banking trojans, ransomware loaders,
-                and credential stealers targeting financial institutions.
+                <b>Largest community-driven malicious URL feed</b> — tracks live malware distribution
+                sites delivering banking trojans, ransomware loaders, and credential stealers.
                 <br><br>
-                Financial institutions are disproportionately targeted through <b>malicious URLs
-                embedded in phishing emails</b> — the #1 attack vector per Verizon DBIR 2024.
-                URLhaus provides the exact URLs that SOC teams can block at the proxy/firewall level
-                or use to enrich SIEM alerts with malware distribution context.
-                <br><br>
-                <b>Volume advantage:</b> With 1,000–3,000 recent URLs per fetch, URLhaus provides
-                significantly more actionable indicators than smaller feeds, enabling comprehensive
-                coverage of active malware campaigns.
+                Phishing URLs are the <b>#1 attack vector</b> against financial institutions (Verizon DBIR 2024).
+                1,000–3,000 URLs per fetch enables comprehensive proxy/firewall blocklists.
                 </p>
             </div>""", unsafe_allow_html=True)
 
@@ -1891,10 +1876,8 @@ elif page == "📡  Data Sources":
 
         st.markdown("""
         <div class="gap-note">
-        <b>Key Fields:</b> id (unique URL identifier), dateadded (submission timestamp), url (malicious URL),
-        url_status (online/offline/unknown), threat (malware type), tags (community labels), reporter (submitter).<br>
-        <b>Provenance:</b> abuse.ch is a Swiss non-profit research project widely cited by CISA, Europol, and FS-ISAC
-        as a trusted source (abuse.ch, 2025).
+        <b>Key Fields:</b> id, dateadded, url, url_status, threat, tags, reporter.<br>
+        <b>Provenance:</b> abuse.ch — Swiss non-profit cited by CISA, Europol, and FS-ISAC (abuse.ch, 2025).
         </div>""", unsafe_allow_html=True)
 
     # ─── SOURCE 2: MALWAREBAZAAR ──────────────────────────────────────────
@@ -1922,20 +1905,13 @@ elif page == "📡  Data Sources":
         with col_mb_justify:
             st.markdown("""
             <div class="card" style="border-left:5px solid #C9A017">
-                <b style="color:#C9A017">✔ Justification for GFI CTI Platform</b><br><br>
+                <b style="color:#C9A017">✔ Justification</b><br><br>
                 <p style="font-size:0.9rem">
-                MalwareBazaar provides <b>file-level malware intelligence</b> — the actual malware
-                samples and their signatures that are actively used in attacks. This complements
-                URLhaus (distribution URLs) and ThreatFox (IOCs) by adding the <b>payload layer</b>
-                to our intelligence picture.
+                <b>File-level malware intelligence</b> — actual malware samples and signatures
+                actively used in attacks. Adds the <b>payload layer</b> to complement URLhaus (URLs) and ThreatFox (IOCs).
                 <br><br>
-                For financial institutions, understanding which <b>malware families and file types</b>
-                are currently in circulation enables SOC teams to tune endpoint detection rules,
-                update YARA signatures, and prioritize sandbox analysis for the most relevant threats.
-                <br><br>
-                <b>Cross-source enrichment:</b> MalwareBazaar signatures can be cross-referenced with
-                ThreatFox malware families and URLhaus threat types to build a complete attack chain
-                picture — from distribution URL to payload to C2 infrastructure.
+                Enables SOC teams to tune endpoint detection rules and prioritize sandbox analysis.
+                Cross-reference with ThreatFox families to map <b>complete attack chains</b>.
                 </p>
             </div>""", unsafe_allow_html=True)
 
@@ -1988,10 +1964,8 @@ elif page == "📡  Data Sources":
 
         st.markdown("""
         <div class="gap-note">
-        <b>Key Fields:</b> sha256_hash (sample hash), file_type (exe/dll/doc/etc), file_size (bytes),
-        signature (malware family), first_seen (submission timestamp), tags (community labels), reporter (submitter).<br>
-        <b>Provenance:</b> abuse.ch MalwareBazaar — community-driven malware sample sharing platform,
-        widely used by CERTs, AV vendors, and threat intelligence teams globally (abuse.ch, 2025).
+        <b>Key Fields:</b> sha256_hash, file_type, file_size, signature, first_seen, tags, reporter.<br>
+        <b>Provenance:</b> abuse.ch MalwareBazaar — used by CERTs and AV vendors globally (abuse.ch, 2025).
         </div>""", unsafe_allow_html=True)
 
     # ─── SOURCE 3: RANSOMWARE.LIVE (20 pts) ────────────────────────────────
@@ -2019,23 +1993,14 @@ elif page == "📡  Data Sources":
         with col_justify2:
             st.markdown("""
             <div class="card" style="border-left:5px solid #C9A017">
-                <b style="color:#C9A017">✔ Justification for GFI CTI Platform</b><br><br>
+                <b style="color:#C9A017">✔ Justification</b><br><br>
                 <p style="font-size:0.9rem">
-                Ransomware.live aggregates victim posts from <b>100+ active ransomware group leak sites</b>
-                on the dark web, providing the industry's most comprehensive real-time view of who
-                has been victimised and by whom. This is the same intelligence operationalised by
-                threat intelligence vendors (Recorded Future, CrowdStrike, Mandiant) in paid products —
-                available here as free OSINT.
+                Aggregates victim posts from <b>100+ ransomware group leak sites</b> — same intelligence
+                used by Recorded Future, CrowdStrike, and Mandiant, available as free OSINT.
                 <br><br>
-                <b>For financial institutions:</b> the financial sector consistently ranks in the top 3
-                most-targeted industries for ransomware (Verizon DBIR 2024 — 29% of finance incidents
-                involve ransomware). Knowing which groups are actively targeting peer institutions
-                enables proactive hunting rather than reactive response.
-                <br><br>
-                <b>SEC EDGAR 8-K integration:</b> When a named financial institution appears in
-                ransomware.live, our platform can cross-reference with SEC EDGAR to check if a
-                material incident disclosure was subsequently filed — creating a unique
-                disclosure-lag intelligence signal for the financial sector.
+                Finance ranks <b>top 3</b> for ransomware targeting (29% of incidents, DBIR 2024).
+                Cross-references with SEC EDGAR 8-K to detect <b>disclosure lag</b> between leak site
+                posts and official filings.
                 </p>
             </div>""", unsafe_allow_html=True)
 
@@ -2090,17 +2055,14 @@ elif page == "📡  Data Sources":
                 st.dataframe(fin_rw[show_rw_cols].sort_values("discovered", ascending=False) if "discovered" in fin_rw.columns else fin_rw[show_rw_cols],
                              use_container_width=True, hide_index=True)
             else:
-                st.info("No financial-sector victims found in the current recent victims window. This is expected when the 100-victim window contains no finance matches — use the Data Explorer to query longer time ranges.")
+                st.info("No financial-sector victims in current window — try the Data Explorer for longer time ranges.")
         else:
             st.warning("⚠️ Ransomware.live API currently unreachable.")
 
         st.markdown("""
         <div class="gap-note">
-        <b>Key Fields:</b> victim (organization name), group (ransomware gang), discovered (ISO 8601 timestamp),
-        description (victim profile from leak site), website (victim domain), country (ISO 3166-1 alpha-2).<br>
-        <b>Provenance:</b> Data sourced by ransomware.live crawlers from ransomware group .onion leak sites.
-        All information is publicly disclosed by the attackers themselves and aggregated for defensive purposes
-        (Mousqueton, 2024; cited by CERT-FR, CISA, and FS-ISAC in threat briefings).
+        <b>Key Fields:</b> victim, group, discovered, description, website, country.<br>
+        <b>Provenance:</b> ransomware.live — aggregates public leak-site data for defensive use (Mousqueton, 2024; cited by CERT-FR, CISA).
         </div>""", unsafe_allow_html=True)
 
     # ─── SOURCE 4: THREATFOX (5 pts additional context) ────────────────────
@@ -2125,18 +2087,12 @@ elif page == "📡  Data Sources":
         with col_tf2:
             st.markdown("""
             <div class="card" style="border-left:5px solid #C9A017">
-                <b style="color:#C9A017">✔ Industry Fit & Cross-Source Value</b><br><br>
+                <b style="color:#C9A017">✔ Cross-Source Value</b><br><br>
                 <p style="font-size:0.9rem">
-                ThreatFox extends URLhaus and MalwareBazaar by providing <b>multi-type IOCs</b>
-                (IPs, domains, URLs, file hashes) for banking-trojan malware families
-                and broader threats. This enables:
-                <ul>
-                    <li>DNS-layer blocking of C2 domains (beyond URL-only blocklists)</li>
-                    <li>Hash-based detection for banking trojan payloads in email security</li>
-                    <li>Cross-referencing IOCs with internal SIEM for active infection hunting</li>
-                </ul>
-                Combined with URLhaus and MalwareBazaar, ThreatFox provides a <b>360° IOC profile</b>
-                for banking trojans — critical for GFI threat hunting teams (Aisha Patel user story).
+                Extends URLhaus and MalwareBazaar with <b>multi-type IOCs</b> (IPs, domains, URLs, hashes).
+                Enables DNS-layer blocking, hash-based detection, and SIEM cross-referencing.
+                <br><br>
+                Together, the three abuse.ch feeds provide a <b>360° IOC profile</b> for banking trojans.
                 </p>
             </div>""", unsafe_allow_html=True)
 
@@ -2189,20 +2145,14 @@ elif page == "📡  Data Sources":
         with col_sec2:
             st.markdown("""
             <div class="card" style="border-left:5px solid #C9A017">
-                <b style="color:#C9A017">✔ Industry Fit & Unique Intelligence Value</b><br><br>
+                <b style="color:#C9A017">✔ Unique Intelligence Value</b><br><br>
                 <p style="font-size:0.9rem">
-                SEC Rule 33-11216 mandates that public companies disclose <b>material cybersecurity
-                incidents within 4 business days</b> via an 8-K filing. This creates a unique
-                intelligence signal unavailable in any other free source: <b>real, named, legally
-                affirmed breach disclosures from public financial institutions</b>.
+                SEC Rule 33-11216 requires disclosure of <b>material cyber incidents within 4 business days</b>.
+                These are <b>victim-reported, legally reviewed</b> filings — the highest-confidence breach
+                intelligence available, unlike attacker-reported leak site data.
                 <br><br>
-                Unlike ransomware leak sites (attacker-reported), SEC 8-K filings are
-                <b>victim-reported, legally reviewed, and filed under penalty of false statement</b>
-                — making them the highest-confidence breach intelligence available.
-                <br><br>
-                Combined with ransomware.live, this enables our platform to detect
-                <b>disclosure lag</b>: time between a ransomware.live post and the corresponding
-                8-K filing — a key metric for assessing incident response maturity.
+                Combined with ransomware.live, enables <b>disclosure lag</b> detection — a key metric
+                for incident response maturity assessment.
                 </p>
             </div>""", unsafe_allow_html=True)
 
@@ -2410,18 +2360,16 @@ elif page == "📡  Data Sources":
             },
         ])
         st.dataframe(strategy_data, use_container_width=True, hide_index=True)
-        _caption("Table 1. Data collection strategy per source. All sources use @st.cache_data(ttl=N) to enforce TTL caching and avoid excessive API calls. User-Agent header identifies the platform per SEC EDGAR requirements.")
+        _caption("Table 1. Data collection strategy per source. All sources use @st.cache_data(ttl=N) for TTL caching.")
 
         st.markdown("""
         <div class="card" style="border-left:5px solid #2E86AB; margin-top:16px">
-        <b style="color:#2E86AB">Preprocessing Steps (per source)</b><br><br>
+        <b style="color:#2E86AB">Preprocessing Steps (per source)</b><br>
         <ol style="font-size:0.9rem">
-            <li><b>Column normalisation:</b> All column names lowercased; field names standardised across sources.</li>
-            <li><b>Datetime parsing:</b> All date/timestamp fields converted to pandas Timestamp via pd.to_datetime(errors="coerce").</li>
-            <li><b>Financial filter:</b> Ransomware.live results filtered by FINANCE_KEYWORDS against victim name + description fields.</li>
-            <li><b>Finance vendor filter:</b> CISA KEV results filtered by FINANCE_VENDORS list against vendorProject field.</li>
-            <li><b>Empty-safe rendering:</b> All visualisations guarded by <code>if not df.empty</code> checks before rendering.</li>
-            <li><b>No PII storage:</b> No data is written to disk; all data lives in-memory for the duration of the session.</li>
+            <li>Column names lowercased and standardised across sources.</li>
+            <li>Date fields parsed via <code>pd.to_datetime(errors="coerce")</code>.</li>
+            <li>Ransomware.live filtered by FINANCE_KEYWORDS; KEV filtered by FINANCE_VENDORS.</li>
+            <li>All visualisations guarded by <code>if not df.empty</code>. No data written to disk.</li>
         </ol>
         </div>""", unsafe_allow_html=True)
 
@@ -2501,20 +2449,13 @@ elif page == "📡  Data Sources":
         st.markdown('<div class="sub-header">Minimum Data Expectations — Justification</div>', unsafe_allow_html=True)
         st.markdown("""
         <div class="gap-note">
-        <b>Why these minimums yield actionable intelligence even at lower thresholds:</b><br><br>
+        <b>Why these minimums are sufficient:</b><br>
         <ul>
-            <li><b>URLhaus ≥ 1,000 URLs:</b> Each malicious URL represents an active malware distribution point.
-            With 1,000+ URLs, SOC teams can build comprehensive proxy/firewall blocklists covering the majority
-            of current campaigns. MalwareBazaar ≥ 50 samples provides payload-level context for these URLs.</li>
-            <li><b>Ransomware.live ≥ 50 victims / 30 days:</b> The 100-victim recent window is sufficient
-            to identify active threat groups, trending TTPs, and sector targeting patterns.
-            Smaller windows still yield actionable hunting hypotheses.</li>
-            <li><b>ThreatFox ≥ 500 IOCs / 7 days:</b> A 7-day IOC window covers the typical malware
-            campaign lifecycle from initial phish to C2 establishment. IOC staleness risk is mitigated
-            by the short TTL window.</li>
-            <li><b>SEC EDGAR ≥ 50 filings:</b> Even 50 filings represent a statistically significant
-            sample of named, legally confirmed breaches at public financial institutions — providing
-            ground truth for breach severity and disclosure-lag analysis.</li>
+            <li><b>URLhaus ≥ 1,000 URLs:</b> Covers majority of current malware distribution campaigns for blocklist generation.</li>
+            <li><b>MalwareBazaar ≥ 50 samples:</b> Provides payload-level context for active threats.</li>
+            <li><b>Ransomware.live ≥ 50 victims / 30 days:</b> Sufficient to identify active groups and sector targeting patterns.</li>
+            <li><b>ThreatFox ≥ 500 IOCs / 7 days:</b> Covers typical malware campaign lifecycle from phish to C2.</li>
+            <li><b>SEC EDGAR ≥ 50 filings:</b> Statistically significant sample of confirmed breaches for disclosure-lag analysis.</li>
         </ul>
         </div>""", unsafe_allow_html=True)
 
@@ -2894,16 +2835,11 @@ elif page == "⚖️  Ethics & Security":
         <div class="card" style="border-left:5px solid #2E7D32">
         <b style="color:#2E7D32">Privacy by Design Principles Applied</b><br><br>
         <ol style="font-size:0.9rem">
-            <li><b>No PII collection:</b> The platform does not collect, store, or display any personally identifiable information.
-            All data sources provide infrastructure/organisational-level intelligence, not individual-level data.</li>
-            <li><b>No data persistence:</b> All fetched data lives exclusively in Streamlit session memory
-            via <code>@st.cache_data</code>. No data is written to disk, logged, or transmitted to third parties.</li>
-            <li><b>Victim sensitivity:</b> Ransomware.live victim names are displayed as-originally-published
-            (TLP:WHITE). Descriptions are truncated to avoid reproducing operational attack details.</li>
-            <li><b>GDPR / CCPA considerations:</b> No EU or California residents' personal data is processed.
-            The platform processes only publicly available threat intelligence metadata.</li>
-            <li><b>Research exemption:</b> This platform is developed for academic research and educational
-            purposes under the Georgia State University CIS 8684 course framework.</li>
+            <li><b>No PII collection:</b> Only infrastructure/organisational-level intelligence — no individual-level data.</li>
+            <li><b>No data persistence:</b> All data lives in <code>@st.cache_data</code> session memory — nothing written to disk.</li>
+            <li><b>Victim sensitivity:</b> Ransomware.live victim names displayed as-published (TLP:WHITE); descriptions truncated.</li>
+            <li><b>GDPR / CCPA:</b> No personal data processed — only publicly available threat intelligence metadata.</li>
+            <li><b>Research exemption:</b> Academic research under GSU CIS 8684 course framework.</li>
         </ol>
         </div>""", unsafe_allow_html=True)
 
@@ -2912,14 +2848,14 @@ elif page == "⚖️  Ethics & Security":
         st.markdown('<div class="sub-header">Security-Aware Development Practices</div>', unsafe_allow_html=True)
 
         sec_practices = [
-            ("🔑 No Hardcoded Secrets", "All data sources used in this platform (URLhaus, MalwareBazaar, Ransomware.live, ThreatFox, CISA KEV, EPSS, SEC EDGAR) require no API keys, tokens, or credentials. There are no secrets to manage. If future data sources require API keys, they will be loaded from environment variables via os.environ.get() or Streamlit's st.secrets — never hardcoded in source code."),
-            ("⏱️ Request Timeouts", "All HTTP requests use explicit timeout parameters (12–20 seconds depending on source). This prevents the app from hanging indefinitely on slow or unreachable endpoints. Failed requests are caught by try/except and result in empty DataFrames, triggering st.warning() for the user."),
-            ("🔄 TTL Caching & Rate Limit Compliance", "All API calls are wrapped in @st.cache_data(ttl=N) decorators. This limits API call frequency to at most once per TTL window per source (60 min for most sources, 30 min for Ransomware.live, 120 min for SEC EDGAR). This respects the spirit of each provider's rate limit guidelines even where limits are not formally documented."),
-            ("🛡️ User-Agent Identification", "All HTTP requests include a descriptive User-Agent header: 'GFI-CTI-Platform/2.0 (CIS8684 Academic Research)'. This is required by SEC EDGAR policy and considered best practice by abuse.ch to identify legitimate users and distinguish from scrapers."),
-            ("🧹 Input Sanitisation", "User-provided inputs (search queries for SEC EDGAR, slider values) are passed directly as parameters to API calls — not interpolated into SQL or shell commands. All query parameters are URL-encoded automatically by the requests library. No eval() or exec() calls are present."),
-            ("📭 Graceful Failure Handling", "Every API call is wrapped in try/except Exception blocks. API failures result in empty DataFrames which trigger informative st.warning() messages — the app never crashes due to API unavailability. Fallback logic exists where appropriate (e.g., CISA KEV vendor filter falls back to random 40-row sample)."),
-            ("🗃️ No Risky Data Display", "No raw executable content (malware samples, exploit code) is fetched or displayed. IOC data from ThreatFox includes IP:Port, domains, and file hashes — these are passive indicators for detection, not executable payloads. File hashes are displayed as strings, not as downloadable files."),
-            ("📝 Dependency Management", "All Python dependencies are pinned in requirements.txt with version specifiers. This ensures reproducible builds and avoids supply chain risks from auto-upgrading to untested package versions."),
+            ("🔑 No Hardcoded Secrets", "All sources are keyless (no API keys or tokens). Future keys would use environment variables or st.secrets."),
+            ("⏱️ Request Timeouts", "All requests use 12–20s timeouts. Failures return fallback DataFrames with st.warning()."),
+            ("🔄 TTL Caching", "@st.cache_data(ttl=N) limits API calls to once per 30–120 min window per source."),
+            ("🛡️ User-Agent Header", "All requests identify as 'GFI-CTI-Platform/2.0 (CIS8684 Academic Research)' per SEC EDGAR policy."),
+            ("🧹 Input Sanitisation", "User inputs are passed as API parameters — no SQL/shell interpolation, no eval()/exec()."),
+            ("📭 Graceful Failures", "All API calls wrapped in try/except with hardcoded fallback data for live presentation reliability."),
+            ("🗃️ No Risky Data", "Only passive indicators displayed (IPs, domains, hashes). No executable content fetched or stored."),
+            ("📝 Dependency Pinning", "All packages pinned in requirements.txt for reproducible builds."),
         ]
 
         for title, desc in sec_practices:
@@ -2956,17 +2892,11 @@ GFI-CTI-Platform/
         <div class="card" style="border-left:5px solid #2E86AB">
         <b style="color:#2E86AB">Step-by-Step Setup</b>
         <ol style="font-size:0.9rem; margin-top:10px">
-            <li><b>Prerequisites:</b> Python ≥ 3.10 and <code>pip</code> installed.</li>
-            <li><b>Clone / download</b> the repository or extract the submitted ZIP file.</li>
-            <li><b>Install dependencies:</b><br>
-                <code>pip install -r requirements.txt</code></li>
-            <li><b>Run the app:</b><br>
-                <code>streamlit run milestone2_app.py</code></li>
-            <li><b>Open in browser:</b> Navigate to <code>http://localhost:8501</code></li>
-            <li><b>Data sources:</b> All data is fetched live on first load — internet access required.
-                No local data files needed. API calls are cached for 30–120 minutes per source.</li>
-            <li><b>Offline mode:</b> If APIs are unavailable, place snapshot JSON files in the
-                <code>data/</code> folder. (Future Milestone 3 will add offline-first fallback loading.)</li>
+            <li>Python ≥ 3.10 and <code>pip</code> required.</li>
+            <li>Clone the repo or extract the ZIP.</li>
+            <li><code>pip install -r requirements.txt</code></li>
+            <li><code>streamlit run milestone2_app.py</code></li>
+            <li>Open <code>http://localhost:8501</code> — all data fetched live (internet required, cached 30–120 min).</li>
         </ol>
         </div>""", unsafe_allow_html=True)
 
