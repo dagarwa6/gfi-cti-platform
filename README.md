@@ -21,7 +21,13 @@ organizational context.
 
 ---
 
-## Quick Start
+## Live Demo
+
+**https://gfi-cti-m2.streamlit.app**
+
+---
+
+## Quick Start (Local)
 
 ### 1. Install dependencies
 
