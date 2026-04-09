@@ -196,18 +196,18 @@ YEARS = list(range(2019, 2026))  # 2019–2025 (7 years)
 # FALLBACK DATA — real snapshots for live presentation reliability
 # ─────────────────────────────────────────────
 _FALLBACK_KEV = [
-    {"cveID": "CVE-2026-1340", "vendorProject": "Ivanti", "product": "Endpoint Manager Mobile", "vulnerabilityName": "Ivanti EPMM Code Injection", "dateAdded": "2026-04-08", "knownRansomwareCampaignUse": "Unknown"},
-    {"cveID": "CVE-2026-35616", "vendorProject": "Fortinet", "product": "FortiClient EMS", "vulnerabilityName": "Fortinet FortiClient EMS Improper Access Control", "dateAdded": "2026-04-06", "knownRansomwareCampaignUse": "Unknown"},
-    {"cveID": "CVE-2026-3055", "vendorProject": "Citrix", "product": "NetScaler", "vulnerabilityName": "Citrix NetScaler Out-of-Bounds Read", "dateAdded": "2026-03-30", "knownRansomwareCampaignUse": "Unknown"},
-    {"cveID": "CVE-2025-53521", "vendorProject": "F5", "product": "BIG-IP", "vulnerabilityName": "F5 BIG-IP Stack-Based Buffer Overflow", "dateAdded": "2026-03-27", "knownRansomwareCampaignUse": "Known"},
-    {"cveID": "CVE-2025-24472", "vendorProject": "Fortinet", "product": "FortiOS", "vulnerabilityName": "Fortinet FortiOS Authentication Bypass", "dateAdded": "2026-03-18", "knownRansomwareCampaignUse": "Known"},
-    {"cveID": "CVE-2025-30066", "vendorProject": "tj-actions", "product": "changed-files", "vulnerabilityName": "tj-actions changed-files Command Injection", "dateAdded": "2026-03-18", "knownRansomwareCampaignUse": "Unknown"},
-    {"cveID": "CVE-2024-12356", "vendorProject": "BeyondTrust", "product": "Privileged Remote Access", "vulnerabilityName": "BeyondTrust Command Injection", "dateAdded": "2025-12-19", "knownRansomwareCampaignUse": "Unknown"},
-    {"cveID": "CVE-2024-55591", "vendorProject": "Fortinet", "product": "FortiOS", "vulnerabilityName": "Fortinet FortiOS Auth Bypass", "dateAdded": "2025-01-14", "knownRansomwareCampaignUse": "Known"},
-    {"cveID": "CVE-2024-49138", "vendorProject": "Microsoft", "product": "Windows", "vulnerabilityName": "Microsoft CLFS Heap-Based Buffer Overflow", "dateAdded": "2024-12-10", "knownRansomwareCampaignUse": "Unknown"},
-    {"cveID": "CVE-2024-50623", "vendorProject": "Cleo", "product": "Harmony", "vulnerabilityName": "Cleo Multiple Products Unrestricted File Upload", "dateAdded": "2024-12-13", "knownRansomwareCampaignUse": "Known"},
-    {"cveID": "CVE-2024-9474", "vendorProject": "Palo Alto Networks", "product": "PAN-OS", "vulnerabilityName": "Palo Alto PAN-OS OS Command Injection", "dateAdded": "2024-11-18", "knownRansomwareCampaignUse": "Unknown"},
-    {"cveID": "CVE-2023-46805", "vendorProject": "Ivanti", "product": "Connect Secure", "vulnerabilityName": "Ivanti Connect Secure Auth Bypass", "dateAdded": "2024-01-10", "knownRansomwareCampaignUse": "Known"},
+    {"cveID": "CVE-2026-1340", "vendorProject": "Ivanti", "product": "Endpoint Manager Mobile (EPMM)", "vulnerabilityName": "Ivanti Endpoint Manager Mobile (EPMM) Code Injection Vulnerability", "dateAdded": "2026-04-08", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2026-35616", "vendorProject": "Fortinet", "product": "FortiClient EMS", "vulnerabilityName": "Fortinet FortiClient EMS Improper Access Control Vulnerability", "dateAdded": "2026-04-06", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2026-3502", "vendorProject": "TrueConf", "product": "Client", "vulnerabilityName": "TrueConf Client Download of Code Without Integrity Check Vulnerability", "dateAdded": "2026-04-02", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2026-5281", "vendorProject": "Google", "product": "Dawn", "vulnerabilityName": "Google Dawn Use-After-Free Vulnerability", "dateAdded": "2026-04-01", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2026-3055", "vendorProject": "Citrix", "product": "NetScaler", "vulnerabilityName": "Citrix NetScaler Out-of-Bounds Read Vulnerability", "dateAdded": "2026-03-30", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2025-53521", "vendorProject": "F5", "product": "BIG-IP", "vulnerabilityName": "F5 BIG-IP Stack-Based Buffer Overflow Vulnerability", "dateAdded": "2026-03-27", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2026-33634", "vendorProject": "Aquasecurity", "product": "Trivy", "vulnerabilityName": "Aquasecurity Trivy Embedded Malicious Code Vulnerability", "dateAdded": "2026-03-26", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2026-33017", "vendorProject": "Langflow", "product": "Langflow", "vulnerabilityName": "Langflow Code Injection Vulnerability", "dateAdded": "2026-03-25", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2025-32432", "vendorProject": "Craft CMS", "product": "Craft CMS", "vulnerabilityName": "Craft CMS Code Injection Vulnerability", "dateAdded": "2026-03-20", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2025-54068", "vendorProject": "Laravel", "product": "Livewire", "vulnerabilityName": "Laravel Livewire Code Injection Vulnerability", "dateAdded": "2026-03-20", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2025-43510", "vendorProject": "Apple", "product": "Multiple Products", "vulnerabilityName": "Apple Multiple Products Improper Locking Vulnerability", "dateAdded": "2026-03-20", "knownRansomwareCampaignUse": "Unknown"},
+    {"cveID": "CVE-2025-43520", "vendorProject": "Apple", "product": "Multiple Products", "vulnerabilityName": "Apple Multiple Products Classic Buffer Overflow Vulnerability", "dateAdded": "2026-03-20", "knownRansomwareCampaignUse": "Unknown"},
 ]
 
 _FALLBACK_EPSS = [
@@ -785,8 +785,8 @@ if page == "✅  What's New":
     with tab_m2:
         st.markdown("**New sections added in Milestone 2.**")
         m2_items = [
-            ("Data Source 1 — URLhaus", "Live malicious URL feed from abuse.ch. Diamond Model linkage (Infrastructure vertex). Industry adoption by JPMorgan, FS-ISAC, CrowdStrike documented."),
-            ("Data Source 2 — MalwareBazaar", "Recent malware sample database from abuse.ch. Diamond Model linkage (Capability vertex). Industry adoption by CERT/CC, Europol, HSBC documented."),
+            ("Data Source 1 — URLhaus", "Live malicious URL feed from abuse.ch. Diamond Model linkage (Infrastructure vertex). Industry adoption by FS-ISAC, CrowdStrike, Splunk ES documented."),
+            ("Data Source 2 — MalwareBazaar", "Recent malware sample database from abuse.ch. Diamond Model linkage (Capability vertex). Industry adoption by CERT/CC, Europol, MITRE ATT&CK documented."),
             ("Data Source 3 — Ransomware.live", "Real-time ransomware victim tracker. Diamond Model linkage (Adversary + Victim vertices). Industry adoption by Recorded Future, FS-ISAC, CISA documented."),
             ("Data Source 4 — ThreatFox", "IOC database from abuse.ch. Diamond Model linkage (Infrastructure + Capability). Industry adoption by Splunk ES, IBM QRadar, CERT-EU documented."),
             ("Data Source 5 — SEC EDGAR 8-K", "Cybersecurity disclosures post SEC Rule 33-11216. Diamond Model linkage (Victim vertex). Industry adoption by Moody's, BitSight, Mandiant documented."),
@@ -1838,11 +1838,10 @@ elif page == "📡  Data Sources":
         <div class="card" style="border-left:5px solid #2E86AB; margin-top:12px">
             <b style="color:#2E86AB">🏢 Industry Adoption</b><br>
             <p style="font-size:0.9rem">
-            URLhaus feeds are consumed by <b>JPMorgan Chase</b> and <b>Goldman Sachs</b> SOC teams via abuse.ch's
-            bulk blocklist integration (abuse.ch partners page, 2025). <b>FS-ISAC</b> (Financial Services ISAC)
-            distributes URLhaus indicators to its 7,000+ member institutions as part of automated threat sharing (FS-ISAC, 2024).
-            Major security vendors including <b>CrowdStrike Falcon</b>, <b>Palo Alto Cortex XSOAR</b>, and <b>Splunk ES</b>
-            ingest URLhaus as a default threat feed.
+            URLhaus feeds are widely consumed by financial-sector SOC teams and integrated into major SIEM platforms
+            including <b>Splunk ES</b>, <b>CrowdStrike Falcon</b>, and <b>Palo Alto Cortex XSOAR</b> as a default threat feed.
+            <b>FS-ISAC</b> distributes URLhaus indicators to its 7,000+ member institutions (FS-ISAC, 2024).
+            <b>CISA</b> and <b>Europol</b> cite abuse.ch as a trusted source in threat advisories.
             </p>
         </div>""", unsafe_allow_html=True)
 
@@ -1940,10 +1939,9 @@ elif page == "📡  Data Sources":
             <b style="color:#2E86AB">🏢 Industry Adoption</b><br>
             <p style="font-size:0.9rem">
             MalwareBazaar is used by <b>CERT/CC</b>, <b>Europol EC3</b>, and national CERTs for malware triage.
-            Financial-sector SOCs at <b>HSBC</b>, <b>Barclays</b>, and <b>Deutsche Bank</b> leverage MalwareBazaar hashes
-            in their EDR detection rules (abuse.ch community partners, 2025). <b>VirusTotal</b> and <b>Any.Run</b>
-            cross-reference MalwareBazaar submissions. The <b>MITRE ATT&CK</b> framework references abuse.ch data
-            for malware family capability mapping.
+            Financial-sector SOC teams leverage MalwareBazaar hashes in EDR detection rules.
+            <b>VirusTotal</b> and <b>Any.Run</b> cross-reference MalwareBazaar submissions. The <b>MITRE ATT&CK</b>
+            framework references abuse.ch data for malware family capability mapping.
             </p>
         </div>""", unsafe_allow_html=True)
 
@@ -2154,9 +2152,8 @@ elif page == "📡  Data Sources":
             <p style="font-size:0.9rem">
             ThreatFox IOCs are consumed by <b>Suricata</b> and <b>Snort</b> IDS rule generators used across
             financial SOCs. <b>Splunk ES</b>, <b>IBM QRadar</b>, and <b>Microsoft Sentinel</b> have native ThreatFox
-            integrations. <b>CERT-EU</b> and <b>NCSC-UK</b> redistribute ThreatFox indicators to financial-sector
-            constituents. Banking-focused CERTs (e.g., <b>CERT-FI</b>, <b>FS-ISAC</b>) use ThreatFox as a primary
-            source for banking trojan C2 infrastructure tracking.
+            integrations. National CERTs and <b>FS-ISAC</b> redistribute ThreatFox indicators for banking
+            trojan C2 infrastructure tracking.
             </p>
         </div>""", unsafe_allow_html=True)
 
