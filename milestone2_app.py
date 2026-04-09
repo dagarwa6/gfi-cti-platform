@@ -2464,8 +2464,7 @@ elif page == "📡  Data Sources":
         </div>""", unsafe_allow_html=True)
 
         st.markdown('<div class="sub-header">VirusTotal — Hash Lookup</div>', unsafe_allow_html=True)
-        _VT_API_KEY = "dac0592bf2dcc85f565ecf8d15d892057ffce060fc1f226a53eb5da2cce1e6ee"
-        vt_key = _VT_API_KEY
+        vt_key = st.secrets.get("VT_API_KEY", "")
 
         # Get hashes from MalwareBazaar to cross-reference
         mb_df_for_vt = fetch_malwarebazaar()
@@ -3148,7 +3147,7 @@ elif page == "⚖️  Ethics & Security":
         st.markdown('<div class="sub-header">Security-Aware Development Practices</div>', unsafe_allow_html=True)
 
         sec_practices = [
-            ("🔑 No Hardcoded Secrets", "Six sources are keyless. VirusTotal uses a free-tier API key pre-filled for demo convenience; in production, keys would use st.secrets or environment variables."),
+            ("🔑 No Hardcoded Secrets", "Six sources are keyless. VirusTotal API key stored in .streamlit/secrets.toml (gitignored) and loaded via st.secrets — never in source code."),
             ("⏱️ Request Timeouts", "All requests use 12–20s timeouts. Failures return fallback DataFrames with st.warning()."),
             ("🔄 TTL Caching", "@st.cache_data(ttl=N) limits API calls to once per 30–120 min window per source."),
             ("🛡️ User-Agent Header", "All requests identify as 'GFI-CTI-Platform/2.0 (CIS8684 Academic Research)' per SEC EDGAR policy."),
