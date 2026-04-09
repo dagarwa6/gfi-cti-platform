@@ -301,7 +301,7 @@ def fetch_kev():
         df["dateAdded"] = pd.to_datetime(df["dateAdded"], errors="coerce")
         return df
     except Exception:
-        st.toast("Using cached data for CISA KEV", icon="📦")
+
         df = pd.DataFrame(_FALLBACK_KEV)
         df["dateAdded"] = pd.to_datetime(df["dateAdded"], errors="coerce")
         return df
@@ -316,7 +316,7 @@ def fetch_epss_top():
         df["percentile"] = df["percentile"].astype(float)
         return df
     except Exception:
-        st.toast("Using cached data for EPSS", icon="📦")
+
         return pd.DataFrame(_FALLBACK_EPSS)
 
 def filter_kev_finance(df):
@@ -357,7 +357,7 @@ def fetch_urlhaus():
             df["dateadded"] = pd.to_datetime(df["dateadded"], errors="coerce")
         return df
     except Exception:
-        st.toast("Using cached data for URLhaus", icon="📦")
+
         df = pd.DataFrame(_FALLBACK_URLHAUS)
         df["dateadded"] = pd.to_datetime(df["dateadded"], errors="coerce")
         return df
@@ -382,7 +382,7 @@ def fetch_malwarebazaar():
         r.raise_for_status()
         payload = r.json()
         if payload.get("query_status") != "ok" or "data" not in payload:
-            st.toast("Using cached data for MalwareBazaar", icon="📦")
+
             df = pd.DataFrame(_FALLBACK_MALWAREBAZAAR)
             df["first_seen"] = pd.to_datetime(df["first_seen"], errors="coerce")
             return df
@@ -397,7 +397,7 @@ def fetch_malwarebazaar():
             df["tags"] = df["tags"].apply(lambda x: ", ".join(x) if isinstance(x, list) else str(x))
         return df
     except Exception:
-        st.toast("Using cached data for MalwareBazaar", icon="📦")
+
         df = pd.DataFrame(_FALLBACK_MALWAREBAZAAR)
         df["first_seen"] = pd.to_datetime(df["first_seen"], errors="coerce")
         return df
@@ -455,7 +455,7 @@ def fetch_ransomware_live():
 
         return df
     except Exception:
-        st.toast("Using cached data for Ransomware.live", icon="📦")
+
         df = pd.DataFrame(_FALLBACK_RANSOMWARE)
         df["discovered"] = pd.to_datetime(df["discovered"], errors="coerce")
         return df
@@ -532,7 +532,7 @@ def fetch_threatfox(days: int = 7):
 
         return df
     except Exception:
-        st.toast("Using cached data for ThreatFox", icon="📦")
+
         df = pd.DataFrame(_FALLBACK_THREATFOX)
         df["first_seen"] = pd.to_datetime(df["first_seen"], errors="coerce")
         return df
@@ -598,7 +598,7 @@ def fetch_sec_edgar(query: str = "material cybersecurity incident", start_date: 
         df["file_date"] = pd.to_datetime(df["file_date"], errors="coerce")
         return df
     except Exception:
-        st.toast("Using cached data for SEC EDGAR", icon="📦")
+
         df = pd.DataFrame(_FALLBACK_SEC_EDGAR)
         df["file_date"] = pd.to_datetime(df["file_date"], errors="coerce")
         return df
@@ -2345,7 +2345,7 @@ elif page == "📡  Data Sources":
                 "Cache TTL": "60 min",
                 "Timeout": "20 s",
                 "Rate Limit": "None documented (courteous: max 1 req/min)",
-                "Fallback": "Fallback snapshot + st.toast()",
+                "Fallback": "Fallback snapshot (hardcoded)",
                 "Auth": "None",
             },
             {
@@ -2355,7 +2355,7 @@ elif page == "📡  Data Sources":
                 "Cache TTL": "60 min",
                 "Timeout": "20 s",
                 "Rate Limit": "None documented (courteous: max 1 req/min)",
-                "Fallback": "Fallback snapshot + st.toast()",
+                "Fallback": "Fallback snapshot (hardcoded)",
                 "Auth": "None",
             },
             {
