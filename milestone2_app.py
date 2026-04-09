@@ -1849,7 +1849,7 @@ elif page == "💼  Intelligence Buy-In":
 elif page == "📡  Data Sources":
     st.markdown('<div class="section-header">📡 CTI Data Sources — Identification, Justification & Collection</div>', unsafe_allow_html=True)
     st.markdown(
-        "This platform integrates **seven live threat intelligence feeds** (six free OSINT + VirusTotal free-tier) "
+        "This platform integrates **six live threat intelligence feeds** (six free OSINT + VirusTotal free-tier) "
         "chosen specifically for their relevance to Global Financial Institutions. "
         "All sources are TLP:WHITE — no API keys required, no registration needed."
     )
