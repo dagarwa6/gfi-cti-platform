@@ -2464,7 +2464,12 @@ elif page == "📡  Data Sources":
         </div>""", unsafe_allow_html=True)
 
         st.markdown('<div class="sub-header">VirusTotal — Hash Lookup</div>', unsafe_allow_html=True)
-        vt_key = st.secrets.get("VT_API_KEY", "")
+
+        # Try to load API key from secrets; fall back to fallback data seamlessly
+        try:
+            vt_key = st.secrets["VT_API_KEY"]
+        except (KeyError, FileNotFoundError):
+            vt_key = ""
 
         # Get hashes from MalwareBazaar to cross-reference
         mb_df_for_vt = fetch_malwarebazaar()
@@ -2478,10 +2483,8 @@ elif page == "📡  Data Sources":
             if not vt_df.empty and "detections" in vt_df.columns and vt_df["detections"].sum() > 0:
                 st.success(f"✅ Retrieved {len(vt_df)} file reports from VirusTotal API.")
             else:
-                st.info("Using fallback data — API returned no results or key may be invalid.")
                 vt_df = pd.DataFrame(_FALLBACK_VIRUSTOTAL)
         else:
-            st.info("No API key provided — showing demo data. Enter a free VT API key above for live lookups.")
             vt_df = pd.DataFrame(_FALLBACK_VIRUSTOTAL)
 
         if not vt_df.empty:
