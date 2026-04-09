@@ -286,6 +286,19 @@ _FALLBACK_SEC_EDGAR = [
     {"entity_name": "CITIZENS FINANCIAL GROUP", "file_date": "2024-07-09", "period_of_report": "2024-07-05", "form_type": "8-K", "business_location": "RI"},
 ]
 
+_FALLBACK_VIRUSTOTAL = [
+    {"sha256": "e3b0c44298fc1c149afbf4c8996fb924", "file_type": "Win32 EXE", "malware_family": "QakBot", "detection_ratio": "54/72", "detections": 54, "total_engines": 72, "first_submission": "2026-03-15", "tags": "trojan,banker,qakbot"},
+    {"sha256": "d41d8cd98f00b204e9800998ecf8427e", "file_type": "Win32 DLL", "malware_family": "Emotet", "detection_ratio": "61/72", "detections": 61, "total_engines": 72, "first_submission": "2026-03-20", "tags": "trojan,loader,emotet"},
+    {"sha256": "5d41402abc4b2a76b9719d911017c592", "file_type": "Win32 EXE", "malware_family": "LockBit 3.0", "detection_ratio": "58/72", "detections": 58, "total_engines": 72, "first_submission": "2026-04-01", "tags": "ransomware,lockbit"},
+    {"sha256": "7d793037a0760186574b0282f2f435e7", "file_type": "Win32 EXE", "malware_family": "AgentTesla", "detection_ratio": "51/71", "detections": 51, "total_engines": 71, "first_submission": "2026-03-28", "tags": "stealer,keylogger,agenttesla"},
+    {"sha256": "2fd4e1c67a2d28fced849ee1bb76e739", "file_type": "Win64 EXE", "malware_family": "CobaltStrike", "detection_ratio": "47/72", "detections": 47, "total_engines": 72, "first_submission": "2026-04-02", "tags": "c2,cobaltstrike,beacon"},
+    {"sha256": "de9f2c7fd25e1b3afad3e85a0bd17d9b", "file_type": "Win32 DLL", "malware_family": "IcedID", "detection_ratio": "49/71", "detections": 49, "total_engines": 71, "first_submission": "2026-03-22", "tags": "banker,icedid,bokbot"},
+    {"sha256": "c4ca4238a0b923820dcc509a6f75849b", "file_type": "Win32 EXE", "malware_family": "BlackCat/ALPHV", "detection_ratio": "55/72", "detections": 55, "total_engines": 72, "first_submission": "2026-04-05", "tags": "ransomware,alphv,blackcat"},
+    {"sha256": "a87ff679a2f3e71d9181a67b7542122c", "file_type": "MSIL EXE", "malware_family": "RedLine", "detection_ratio": "52/72", "detections": 52, "total_engines": 72, "first_submission": "2026-03-30", "tags": "stealer,redline"},
+    {"sha256": "e4da3b7fbbce2345d7772b0674a318d5", "file_type": "VBA Macro", "malware_family": "Dridex", "detection_ratio": "43/70", "detections": 43, "total_engines": 70, "first_submission": "2026-03-18", "tags": "macro,banker,dridex"},
+    {"sha256": "1679091c5a880faf6fb5e6087eb1b2dc", "file_type": "Win32 EXE", "malware_family": "Raccoon Stealer", "detection_ratio": "48/72", "detections": 48, "total_engines": 72, "first_submission": "2026-04-03", "tags": "stealer,raccoon"},
+]
+
 # ─────────────────────────────────────────────
 # CACHED DATA FETCHERS
 # ─────────────────────────────────────────────
@@ -347,9 +360,18 @@ def fetch_urlhaus():
             headers={"User-Agent": "GFI-CTI-Platform/2.0 (CIS8684 Academic Research)"}
         )
         r.raise_for_status()
-        lines = [l for l in r.text.splitlines() if not l.startswith("#")]
+        raw_lines = r.text.splitlines()
+        # The last comment line contains the real CSV header (e.g. "# id,dateadded,url,...")
+        header_line = ""
+        data_lines = []
+        for l in raw_lines:
+            if l.startswith("#"):
+                header_line = l.lstrip("# ").strip()
+            else:
+                data_lines.append(l)
         from io import StringIO
-        df = pd.read_csv(StringIO("\n".join(lines)), on_bad_lines="skip")
+        csv_text = header_line + "\n" + "\n".join(data_lines) if header_line else "\n".join(data_lines)
+        df = pd.read_csv(StringIO(csv_text), on_bad_lines="skip")
         df.columns = [c.strip().strip('"').lower() for c in df.columns]
         for col in df.select_dtypes(include="object").columns:
             df[col] = df[col].astype(str).str.strip().str.strip('"')
@@ -471,6 +493,49 @@ def filter_ransomware_finance(df):
         df.get("description", pd.Series(dtype=str)).fillna("").str.lower().str.contains(pattern)
     )
     return df[mask].copy()
+
+
+def fetch_virustotal(api_key: str, hashes: list):
+    """
+    VirusTotal API v3 — file report lookups.
+    Endpoint: GET https://www.virustotal.com/api/v3/files/{hash}
+    Free tier: 500 requests/day, 4 requests/min. Requires API key.
+    Returns detection ratio, malware family, file type, and tags per hash.
+    """
+    if not api_key or not hashes:
+        return pd.DataFrame(_FALLBACK_VIRUSTOTAL)
+    results = []
+    import time
+    for i, h in enumerate(hashes[:10]):  # cap at 10 to respect rate limits
+        try:
+            r = requests.get(
+                f"https://www.virustotal.com/api/v3/files/{h}",
+                headers={"x-apikey": api_key, "User-Agent": "GFI-CTI-Platform/2.0"},
+                timeout=15
+            )
+            if r.status_code == 200:
+                data = r.json().get("data", {}).get("attributes", {})
+                stats = data.get("last_analysis_stats", {})
+                detections = stats.get("malicious", 0) + stats.get("suspicious", 0)
+                total = sum(stats.values())
+                family = data.get("popular_threat_classification", {}).get("suggested_threat_label", "Unknown")
+                results.append({
+                    "sha256": h[:32],
+                    "file_type": data.get("type_description", "Unknown"),
+                    "malware_family": family,
+                    "detection_ratio": f"{detections}/{total}",
+                    "detections": detections,
+                    "total_engines": total,
+                    "first_submission": pd.Timestamp(data.get("first_submission_date", 0), unit="s").strftime("%Y-%m-%d") if data.get("first_submission_date") else "—",
+                    "tags": ", ".join(data.get("tags", [])[:5]),
+                })
+            if i < len(hashes[:10]) - 1:
+                time.sleep(15.5)  # respect 4 req/min rate limit
+        except Exception:
+            continue
+    if not results:
+        return pd.DataFrame(_FALLBACK_VIRUSTOTAL)
+    return pd.DataFrame(results)
 
 
 @st.cache_data(ttl=3600)
@@ -790,6 +855,7 @@ if page == "✅  What's New":
             ("Data Source 3 — Ransomware.live", "Real-time ransomware victim tracker. Diamond Model linkage (Adversary + Victim vertices). Industry adoption by Recorded Future, FS-ISAC, CISA documented."),
             ("Data Source 4 — ThreatFox", "IOC database from abuse.ch. Diamond Model linkage (Infrastructure + Capability). Industry adoption by Splunk ES, IBM QRadar, CERT-EU documented."),
             ("Data Source 5 — SEC EDGAR 8-K", "Cybersecurity disclosures post SEC Rule 33-11216. Diamond Model linkage (Victim vertex). Industry adoption by Moody's, BitSight, Mandiant documented."),
+            ("Data Source 6 — VirusTotal", "Multi-AV consensus via API v3. Diamond Model linkage (Capability vertex). Cross-references MalwareBazaar hashes for detection ratio enrichment. Free-tier API key required."),
             ("Collection Strategy", "Live API fetch architecture with st.cache_data TTL caching, fallback data for live demos, timeout controls, rate-limit docs, and peer approach comparison (MISP, OpenCTI, FS-ISAC AIS)."),
             ("Data Summary / Metadata Quality", "Per-source metadata table: record count, date coverage, key fields, update frequency, and format documented in-app."),
             ("Dynamic Data Explorer (Required)", "Interactive 4-tab explorer: Source Explorer, Cross-Source Correlations, Statistical Analysis, and Time-Series Overlay."),
@@ -1783,14 +1849,14 @@ elif page == "💼  Intelligence Buy-In":
 elif page == "📡  Data Sources":
     st.markdown('<div class="section-header">📡 CTI Data Sources — Identification, Justification & Collection</div>', unsafe_allow_html=True)
     st.markdown(
-        "This platform integrates **six live, free, open-source threat intelligence feeds** "
+        "This platform integrates **seven live threat intelligence feeds** (six free OSINT + VirusTotal free-tier) "
         "chosen specifically for their relevance to Global Financial Institutions. "
         "All sources are TLP:WHITE — no API keys required, no registration needed."
     )
 
-    src_tab1, src_tab2, src_tab3, src_tab4, src_tab5, src_tab6, src_tab7 = st.tabs([
+    src_tab1, src_tab2, src_tab3, src_tab4, src_tab5, src_tab6, src_tab7, src_tab8 = st.tabs([
         "1️⃣ URLhaus", "2️⃣ MalwareBazaar", "3️⃣ Ransomware.live",
-        "4️⃣ ThreatFox", "5️⃣ SEC EDGAR 8-K",
+        "4️⃣ ThreatFox", "5️⃣ SEC EDGAR 8-K", "6️⃣ VirusTotal",
         "📋 Collection Strategy", "📊 Metadata & Minimums",
     ])
 
@@ -2352,8 +2418,113 @@ elif page == "📡  Data Sources":
         else:
             st.warning("⚠️ SEC EDGAR classified search returned no results. The API may be temporarily unreachable.")
 
-    # ─── COLLECTION STRATEGY (10 pts) ──────────────────────────────────────
+    # ─── SOURCE 6: VIRUSTOTAL ────────────────────────────────────────────
     with src_tab6:
+        st.markdown('<div class="sub-header">Data Source 6: VirusTotal (Google/Alphabet)</div>', unsafe_allow_html=True)
+
+        col_vt_meta, col_vt_justify = st.columns([1, 1])
+        with col_vt_meta:
+            st.markdown("""
+            <div class="card" style="border-left:5px solid #394EFF">
+                <b style="color:#394EFF">📌 Source Profile</b><br><br>
+                <table width="100%">
+                    <tr><td><b>Provider</b></td><td>VirusTotal (Google / Chronicle Security)</td></tr>
+                    <tr><td><b>URL</b></td><td>virustotal.com</td></tr>
+                    <tr><td><b>API Endpoint</b></td><td>GET /api/v3/files/{hash}</td></tr>
+                    <tr><td><b>Format</b></td><td>JSON</td></tr>
+                    <tr><td><b>TLP</b></td><td>WHITE — public multi-AV scan results</td></tr>
+                    <tr><td><b>Update Freq.</b></td><td>Real-time (submissions scanned on upload)</td></tr>
+                    <tr><td><b>Auth Required</b></td><td>API key (free tier: 500 req/day, 4 req/min)</td></tr>
+                </table>
+            </div>""", unsafe_allow_html=True)
+        with col_vt_justify:
+            st.markdown("""
+            <div class="card" style="border-left:5px solid #C9A017">
+                <b style="color:#C9A017">📋 Justification & Diamond Model</b><br>
+                <p style="font-size:0.9rem">
+                VirusTotal aggregates scan results from <b>70+ antivirus engines</b>, providing a consensus detection ratio
+                for any file hash. This maps to the <b>Capability vertex</b> of the Diamond Model — enriching
+                MalwareBazaar samples with multi-vendor detection confidence and malware family classification.
+                </p>
+                <p style="font-size:0.9rem">
+                Cross-referencing our MalwareBazaar hashes against VT reveals which samples evade detection
+                (low ratio = high evasion sophistication) — critical for financial-sector SOC prioritisation.
+                </p>
+            </div>""", unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="card" style="border-left:5px solid #2E86AB; margin-top:12px">
+            <b style="color:#2E86AB">🏢 Industry Adoption</b><br>
+            <p style="font-size:0.9rem">
+            VirusTotal is the de facto standard for malware analysis across financial-sector SOC teams.
+            Integrated natively into <b>Splunk ES</b>, <b>CrowdStrike Falcon</b>, <b>Palo Alto Cortex XSOAR</b>,
+            <b>IBM QRadar</b>, and <b>Microsoft Sentinel</b>. <b>FS-ISAC</b> members routinely use VT for
+            IOC enrichment. Referenced by <b>CISA</b>, <b>FBI</b>, and <b>MITRE ATT&CK</b> in threat advisories.
+            </p>
+        </div>""", unsafe_allow_html=True)
+
+        st.markdown('<div class="sub-header">VirusTotal — Hash Lookup</div>', unsafe_allow_html=True)
+        vt_key = st.text_input("VirusTotal API Key (free tier — get yours at virustotal.com)", type="password",
+                               help="Optional. Without a key, demo fallback data is shown.")
+
+        # Get hashes from MalwareBazaar to cross-reference
+        mb_df_for_vt = fetch_malwarebazaar()
+        vt_hashes = []
+        if not mb_df_for_vt.empty and "sha256_hash" in mb_df_for_vt.columns:
+            vt_hashes = mb_df_for_vt["sha256_hash"].dropna().head(10).tolist()
+
+        if vt_key:
+            with st.spinner("Querying VirusTotal API (rate-limited to 4 req/min)..."):
+                vt_df = fetch_virustotal(vt_key, vt_hashes)
+            if not vt_df.empty and "detections" in vt_df.columns and vt_df["detections"].sum() > 0:
+                st.success(f"✅ Retrieved {len(vt_df)} file reports from VirusTotal API.")
+            else:
+                st.info("Using fallback data — API returned no results or key may be invalid.")
+                vt_df = pd.DataFrame(_FALLBACK_VIRUSTOTAL)
+        else:
+            st.info("No API key provided — showing demo data. Enter a free VT API key above for live lookups.")
+            vt_df = pd.DataFrame(_FALLBACK_VIRUSTOTAL)
+
+        if not vt_df.empty:
+            vk1, vk2, vk3, vk4 = st.columns(4)
+            vk1.metric("Samples Analysed", len(vt_df))
+            avg_det = vt_df["detections"].mean() if "detections" in vt_df.columns else 0
+            vk2.metric("Avg Detection Ratio", f"{avg_det:.0f}/{vt_df['total_engines'].iloc[0] if 'total_engines' in vt_df.columns else 72}")
+            max_det = vt_df.loc[vt_df["detections"].idxmax()] if "detections" in vt_df.columns else None
+            vk3.metric("Most Detected", max_det["malware_family"] if max_det is not None else "—")
+            min_det = vt_df.loc[vt_df["detections"].idxmin()] if "detections" in vt_df.columns else None
+            vk4.metric("Most Evasive", min_det["malware_family"] if min_det is not None else "—")
+
+            col_vt1, col_vt2 = st.columns(2)
+            with col_vt1:
+                fig_vt_bar = px.bar(
+                    vt_df.sort_values("detections", ascending=True),
+                    x="detections", y="malware_family", orientation="h",
+                    color="detections", color_continuous_scale=["#2E86AB", "#C9A017", "#C0392B"],
+                    title="Detection Ratio by Malware Family"
+                )
+                fig_vt_bar.update_layout(height=380, font=dict(family="Calibri"), coloraxis_showscale=False)
+                st.plotly_chart(_fix_chart(fig_vt_bar), use_container_width=True)
+            with col_vt2:
+                fig_vt_tree = px.treemap(
+                    vt_df, path=["file_type", "malware_family"], values="detections",
+                    color="detections", color_continuous_scale=["#2E86AB", "#C9A017", "#C0392B"],
+                    title="File Type → Malware Family (by detections)"
+                )
+                fig_vt_tree.update_layout(height=380, font=dict(family="Calibri"), coloraxis_showscale=False)
+                st.plotly_chart(_fix_chart(fig_vt_tree), use_container_width=True)
+
+            show_vt_cols = [c for c in ["sha256", "file_type", "malware_family", "detection_ratio", "first_submission", "tags"] if c in vt_df.columns]
+            st.dataframe(vt_df[show_vt_cols], use_container_width=True, hide_index=True)
+
+        st.markdown("""
+        <div class="gap-note">
+        <b>Key Fields:</b> sha256, file_type, malware_family, detection_ratio, first_submission, tags.<br>
+        <b>Provenance:</b> VirusTotal — Google/Chronicle subsidiary, industry standard for multi-AV consensus (VirusTotal, 2025).
+        </div>""", unsafe_allow_html=True)
+
+    # ─── COLLECTION STRATEGY (10 pts) ──────────────────────────────────────
+    with src_tab7:
         st.markdown('<div class="sub-header">Collection Strategy & Architecture</div>', unsafe_allow_html=True)
 
         st.markdown("""
@@ -2435,6 +2606,16 @@ elif page == "📡  Data Sources":
                 "Fallback": "Empty DataFrame + st.warning()",
                 "Auth": "None",
             },
+            {
+                "Source": "VirusTotal",
+                "Method": "GET — REST/JSON",
+                "Endpoint": "virustotal.com/api/v3/files/{hash}",
+                "Cache TTL": "On-demand (not cached)",
+                "Timeout": "15 s",
+                "Rate Limit": "Free tier: 500 req/day, 4 req/min",
+                "Fallback": "Fallback snapshot (hardcoded)",
+                "Auth": "API key (free registration)",
+            },
         ])
         st.dataframe(strategy_data, use_container_width=True, hide_index=True)
         _caption("Table 1. Data collection strategy per source. All sources use @st.cache_data(ttl=N) for TTL caching.")
@@ -2476,7 +2657,7 @@ elif page == "📡  Data Sources":
         </div>""", unsafe_allow_html=True)
 
     # ─── METADATA & MINIMUMS (10 + 5 pts) ──────────────────────────────────
-    with src_tab7:
+    with src_tab8:
         st.markdown('<div class="sub-header">Data Summary, Metadata Quality & Minimum Expectations</div>', unsafe_allow_html=True)
 
         st.markdown("**Per-Source Metadata Summary**")
@@ -2543,6 +2724,15 @@ elif page == "📡  Data Sources":
                 "Update Frequency": "Daily",
                 "Format": "JSON",
                 "Minimum Expectation": "≥ 100 CVEs with EPSS ≥ 0.10",
+            },
+            {
+                "Source": "VirusTotal",
+                "Typical Record Count": "On-demand per hash (10 per session)",
+                "Date Coverage": "Historical — all submissions since 2004",
+                "Key Fields": "sha256, file_type, malware_family, detection_ratio, first_submission, tags",
+                "Update Frequency": "Real-time (re-scanned on submission)",
+                "Format": "JSON (API v3)",
+                "Minimum Expectation": "≥ 10 hash lookups per session",
             },
         ])
         st.dataframe(meta_data, use_container_width=True, hide_index=True)
@@ -2928,6 +3118,14 @@ elif page == "⚖️  Ethics & Security":
                 "Redactions Applied": "None required",
                 "Ethical Constraints": "EPSS scores should not be used in isolation to accept/reject vulnerability patches — context matters",
             },
+            {
+                "Source": "VirusTotal",
+                "TLP": "TLP:WHITE",
+                "Legal Basis": "VirusTotal ToS — free tier for non-commercial/research use; API key required (not hardcoded)",
+                "PII Present": "No — file hashes, detection ratios, malware family labels only",
+                "Redactions Applied": "None required; only aggregate scan results displayed",
+                "Ethical Constraints": "API key entered at runtime and never stored. Rate limits respected (4 req/min). Do not redistribute raw VT reports.",
+            },
         ])
         st.dataframe(ethics_data, use_container_width=True, hide_index=True)
         _caption("Table 3. Legal and ethical classification per data source. TLP = Traffic Light Protocol (FIRST.org). All sources are TLP:WHITE — unrestricted sharing for defensive purposes.")
@@ -2950,7 +3148,7 @@ elif page == "⚖️  Ethics & Security":
         st.markdown('<div class="sub-header">Security-Aware Development Practices</div>', unsafe_allow_html=True)
 
         sec_practices = [
-            ("🔑 No Hardcoded Secrets", "All sources are keyless (no API keys or tokens). Future keys would use environment variables or st.secrets."),
+            ("🔑 No Hardcoded Secrets", "Six sources are keyless. VirusTotal API key entered at runtime via masked st.text_input() — never stored or logged."),
             ("⏱️ Request Timeouts", "All requests use 12–20s timeouts. Failures return fallback DataFrames with st.warning()."),
             ("🔄 TTL Caching", "@st.cache_data(ttl=N) limits API calls to once per 30–120 min window per source."),
             ("🛡️ User-Agent Header", "All requests identify as 'GFI-CTI-Platform/2.0 (CIS8684 Academic Research)' per SEC EDGAR policy."),
