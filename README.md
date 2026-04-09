@@ -1,4 +1,4 @@
-# GFI Cyber Threat Intelligence Platform — Milestone 1
+# GFI Cyber Threat Intelligence Platform — Milestone 2
 
 **CIS 8684 · Cyber Threat Intelligence · Section 003 · Spring 2026**
 
@@ -9,17 +9,15 @@
 
 ## Project Overview
 
-This Streamlit application is Milestone 1 of a four-milestone project to build a
+This Streamlit application is **Milestone 2** of a four-milestone project to build a
 **Cyber Threat Intelligence (CTI) platform for Global Financial Institutions (GFI)**.
-The platform targets firms like JPMorgan Chase, Goldman Sachs, Citigroup, and HSBC —
-institutions that simultaneously operate investment banking, capital markets, and retail
-banking, and face a unique combination of threat actors ranging from ransomware groups
+The platform targets major financial institutions operating investment banking,
+capital markets, and retail banking — facing threat actors from ransomware groups
 to nation-state APTs.
 
 The platform's core innovation is a **dual-level ELO scoring engine** (introduced in
 Milestones 3–4) that dynamically prioritizes CVEs and threat actors based on
-organizational context — replacing generic CVSS/EPSS rankings with organization-specific
-threat prioritization.
+organizational context.
 
 ---
 
@@ -34,23 +32,24 @@ pip install -r requirements.txt
 ### 2. Run the app
 
 ```bash
-streamlit run milestone1_app.py
+streamlit run milestone2_app.py
 ```
 
 The app will open in your browser at `http://localhost:8501`.
+
+All data is fetched live — internet access required. API calls are cached 30–120 minutes per source.
 
 ---
 
 ## Requirements
 
 ```
-streamlit>=1.33
-pandas>=2.0
-numpy>=1.24
-plotly>=5.18
-requests>=2.31
-scikit-learn>=1.3
-networkx>=3.1
+streamlit>=1.32.0
+pandas>=2.2.0
+numpy>=1.26.0
+plotly>=5.20.0
+requests>=2.31.0
+python-dateutil>=2.9.0
 ```
 
 A `requirements.txt` file is included in this directory.
@@ -61,55 +60,70 @@ A `requirements.txt` file is included in this directory.
 
 | Section | Description |
 |---|---|
-| ✅ What's New | Milestone 1 change checklist (required) |
+| ✅ What's New | Milestone 1 + 2 change checklists |
 | 🏦 Industry Background | GFI overview: services, size, players, IT criticality |
 | 👥 Stakeholders & Use Case | 3 personas, 6 user stories, CTI use case design |
 | 📈 Threat Trends & Assets | Interactive threat trends, 8 critical assets, exposure matrix |
 | 💎 Diamond Models | 2 complete Diamond Models with Plotly visualization + JSON export |
 | 📊 Live Dashboard | CISA KEV + EPSS live data with interactive filters and KPIs |
 | 💼 Intelligence Buy-In | Breach cost trends, ROI calculator, business case |
+| 📡 Data Sources | 7 live sources with justification, collection strategy, metadata |
+| 🔍 Data Explorer | 4-tab interactive explorer with cross-source correlations |
+| ⚖️ Ethics & Security | Ethics, privacy, security practices, reproducibility |
 | 👨‍💼 Team | Roles, contributions, and electronic signatures |
 
 ---
 
-## Data Sources
+## Data Sources (Milestone 2)
 
-All data sources used in Milestone 1 are **free and publicly accessible**:
+All data sources are **free, publicly accessible OSINT** (except VirusTotal which requires a free API key):
 
-| Source | URL | Type |
-|---|---|---|
-| CISA KEV | https://www.cisa.gov/known-exploited-vulnerabilities-catalog | Live JSON API |
-| EPSS | https://api.first.org/data/v1/epss | Live JSON API |
-| Synthetic Trends | Seeded with realistic financial sector values | Local (deterministic) |
+| Source | URL | Type | Auth |
+|---|---|---|---|
+| URLhaus | urlhaus.abuse.ch | CSV (GET) | None |
+| MalwareBazaar | bazaar.abuse.ch | JSON (POST) | None |
+| Ransomware.live | api.ransomware.live | JSON (GET) | None |
+| ThreatFox | threatfox.abuse.ch | CSV (GET) | None |
+| SEC EDGAR 8-K | efts.sec.gov | JSON (GET) | None (User-Agent required) |
+| VirusTotal | virustotal.com/api/v3 | JSON (GET) | Free API key |
+| CISA KEV | cisa.gov | JSON (GET) | None |
+| EPSS | api.first.org | JSON (GET) | None |
 
-Additional sources (Feodo Tracker, PhishTank, Ransomware.live, SEC EDGAR) will be
-integrated in Milestone 2.
+Hardcoded fallback data is included for all sources to ensure live demo reliability.
 
 ---
 
 ## Data Folder Structure
 
 ```
-Cyber Threat Intelligence/
-├── milestone1_app.py        ← Main Streamlit application (this milestone)
-├── requirements.txt         ← Python package dependencies
-└── README.md                ← This file
+GFI-CTI-Platform/
+├── milestone2_app.py          # Main Streamlit app (Milestones 1 + 2)
+├── milestone1_app.py          # Milestone 1 reference version
+├── requirements.txt           # Python dependencies (pinned versions)
+├── README.md                  # This file
+├── .streamlit/
+│   └── config.toml            # Dark theme configuration
+├── data/                      # Optional: cached/offline snapshots
+│   ├── urlhaus_snapshot.json
+│   ├── ransomware_snapshot.json
+│   └── sec_edgar_snapshot.json
+└── docs/
+    └── GFI_CTI_Proposal.pptx
 ```
 
-No external data files are required for Milestone 1. All live data is fetched from
-APIs at runtime and cached for 1 hour. The app includes graceful fallback handling
-if APIs are unavailable.
+No external data files are required. All data is fetched live from APIs at runtime
+and cached via `@st.cache_data(ttl=N)`. Fallback data is hardcoded for reliability.
 
 ---
 
 ## How to Reproduce Analysis
 
-1. Clone or download this directory
-2. Install dependencies: `pip install -r requirements.txt`
-3. Launch: `streamlit run milestone1_app.py`
-4. Use the **sidebar** to navigate between sections
-5. Use the **Global Filters** in the sidebar to adjust sub-sector, threat categories, and year range
-6. The **Live Dashboard** section fetches fresh CISA KEV and EPSS data on each app launch (cached 1 hour)
+1. Python >= 3.10 and `pip` required
+2. Clone the repo or extract the ZIP
+3. `pip install -r requirements.txt`
+4. `streamlit run milestone2_app.py`
+5. Open `http://localhost:8501` — all data fetched live (cached 30–120 min)
+6. Optional: Enter a free VirusTotal API key in the Data Sources > VirusTotal tab
 
 ---
 
@@ -117,9 +131,9 @@ if APIs are unavailable.
 
 | Milestone | Due | Focus |
 |---|---|---|
-| **M1 (this file)** | March 26, 2026 | Industry background, threat trends, diamond models, dashboard starter |
-| M2 | April 9, 2026 | Data source integration: Feodo Tracker, PhishTank, Ransomware.live, SEC EDGAR |
-| M3 | April 23, 2026 | ELO scoring engine (CVE-level + Threat Actor-level), analytics, visualizations |
+| M1 | March 26, 2026 | Industry background, threat trends, diamond models, dashboard starter |
+| **M2 (current)** | **April 9, 2026** | **7 data sources, collection strategy, data explorer, ethics, security** |
+| M3 | April 23, 2026 | ELO scoring engine (CVE-level + Threat Actor-level), analytics |
 | M4 | April 30, 2026 | Final polish, triage dashboard, role-based views, STIX export |
 
 ---
