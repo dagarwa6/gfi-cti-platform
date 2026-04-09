@@ -123,7 +123,7 @@ and cached via `@st.cache_data(ttl=N)`. Fallback data is hardcoded for reliabili
 3. `pip install -r requirements.txt`
 4. `streamlit run milestone2_app.py`
 5. Open `http://localhost:8501` — all data fetched live (cached 30–120 min)
-6. Optional: Enter a free VirusTotal API key in the Data Sources > VirusTotal tab
+6. VirusTotal: if you have an API key, place it in `.streamlit/secrets.toml` as `VT_API_KEY = "your_key"`. Without it, demo fallback data loads automatically.
 
 ---
 
