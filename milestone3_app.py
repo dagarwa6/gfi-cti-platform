@@ -31,10 +31,7 @@ import requests
 import streamlit as st
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import (
-    confusion_matrix, classification_report,
-    roc_curve, auc, precision_recall_curve,
-)
+from sklearn.metrics import confusion_matrix, roc_curve, auc
 
 # ─────────────────────────────────────────────
 # CHART HELPER — dark-themed charts to match app
@@ -3375,6 +3372,7 @@ elif page == "📐  Analytics":
                 fig_class.update_layout(height=250, showlegend=True, margin=dict(t=40, b=10, l=10, r=10))
                 fig_class.update_traces(textinfo="percent+value", textfont_color="#FFFFFF")
                 st.plotly_chart(_fix_chart(fig_class), use_container_width=True)
+                _caption("Class balance — positive class ~20% (addressed via balanced weighting).")
             with _ds_col2:
                 with st.expander("📋 Feature Matrix Preview", expanded=False):
                     st.dataframe(
@@ -3439,7 +3437,7 @@ elif page == "📐  Analytics":
                     )
                     fig_cm.update_layout(height=350)
                     st.plotly_chart(_fix_chart(fig_cm), use_container_width=True)
-                    _caption("**Fig 18.** Confusion matrix — rows = actual, columns = predicted. Source: CISA KEV + EPSS.")
+                    _caption("**Fig 24.** Confusion matrix — rows = actual, columns = predicted. Source: CISA KEV + EPSS.")
 
                 # ── ROC Curve ───────────────────────────────────────────────
                 with ev_col2:
@@ -3462,7 +3460,7 @@ elif page == "📐  Analytics":
                         legend=dict(x=0.35, y=0.05),
                     )
                     st.plotly_chart(_fix_chart(fig_roc), use_container_width=True)
-                    _caption("**Fig 19.** ROC curve — AUC measures classifier quality across all thresholds (Wk 4, slide 71).")
+                    _caption("**Fig 25.** ROC curve — AUC measures classifier quality across all thresholds (Wk 4, slide 71).")
 
                 # ── Feature Importance ──────────────────────────────────────
                 feat_imp = pd.DataFrame({
@@ -3481,7 +3479,7 @@ elif page == "📐  Analytics":
                 fig_imp.update_layout(height=340, coloraxis_showscale=False,
                                       yaxis=dict(autorange="reversed"))
                 st.plotly_chart(_fix_chart(fig_imp), use_container_width=True)
-                _caption("**Fig 20.** Random Forest feature importance — higher = more discriminative for ransomware prediction.")
+                _caption("**Fig 26.** Random Forest feature importance — higher = more discriminative for ransomware prediction.")
 
                 # ── Top predictions table ───────────────────────────────────
                 st.markdown('<div class="sub-header">Highest-Risk CVE Predictions</div>', unsafe_allow_html=True)
@@ -3681,7 +3679,7 @@ elif page == "📐  Analytics":
                 legend=dict(orientation="h", yanchor="bottom", y=1.02),
             )
             st.plotly_chart(_fix_chart(fig_ts), use_container_width=True)
-            _caption(f"**Figure 21.** KEV monthly additions with anomaly flags (|z| > {anomaly_threshold:.1f}, red stars). Source: CISA KEV.")
+            _caption(f"**Fig 27.** KEV monthly additions with anomaly flags (|z| > {anomaly_threshold:.1f}, red stars). Source: CISA KEV.")
 
             if not anomaly_rows.empty:
                 st.markdown("**Detected Anomaly Months:**")
@@ -3704,7 +3702,7 @@ elif page == "📐  Analytics":
                                 color_discrete_sequence=["#C0392B"])
             fig_rw_ts.update_layout(height=280)
             st.plotly_chart(_fix_chart(fig_rw_ts), use_container_width=True)
-            _caption("**Figure 22.** Daily ransomware victim posts — spikes indicate active campaigns. Source: ransomware.live.")
+            _caption("**Fig 28.** Daily ransomware victim posts — spikes indicate active campaigns. Source: ransomware.live.")
 
     # ── ANALYTIC APPROACH 3: CROSS-SOURCE IOC CORRELATION ───────────────────
     with an_tab4:
@@ -3766,7 +3764,7 @@ elif page == "📐  Analytics":
                               title="Cross-Source Malware Family Corroboration")
             fig_venn.update_layout(height=320, coloraxis_showscale=False)
             st.plotly_chart(_fix_chart(fig_venn), use_container_width=True)
-            _caption("**Figure 23.** Cross-source family corroboration — CCS=3 families are highest-confidence active campaigns.")
+            _caption("**Fig 29.** Cross-source family corroboration — CCS=3 families are highest-confidence active campaigns.")
 
             if all_three:
                 st.markdown(f"**Highest-Confidence Families (CCS=3 — in all three sources):** {', '.join(sorted(list(all_three)[:20]))}")
@@ -3884,10 +3882,26 @@ elif page == "📐  Analytics":
             # Compact visualization documentation table
             st.markdown('<div class="sub-header">Visualization Documentation</div>', unsafe_allow_html=True)
             viz_doc_df = pd.DataFrame({
-                "Figure": ["Fig 18 — Confusion Matrix", "Fig 19 — ROC Curve", "Fig 21 — Anomaly Detection"],
-                "Type": ["2×2 heatmap (TP/TN/FP/FN)", "TPR vs FPR across thresholds", "Bar + scatter overlay (z-score flags)"],
-                "Data": ["KEV + EPSS, 70/30 holdout", "RF predicted probs vs labels", "KEV dateAdded monthly aggregation"],
-                "Course Ref": ["Wk 4, sl. 69-70", "Wk 4, sl. 71", "Wk 4, sl. 33-38"],
+                "Figure": [
+                    "Fig 24 — Confusion Matrix", "Fig 25 — ROC Curve", "Fig 26 — Feature Importance",
+                    "Fig 27 — Anomaly Detection", "Fig 28 — Ransomware Victims", "Fig 29 — Cross-Source Corroboration",
+                    "MTTD Reduction", "Precision / Recall Trade-off",
+                ],
+                "Type": [
+                    "2×2 heatmap (TP/TN/FP/FN)", "TPR vs FPR across thresholds", "Horizontal bar (Gini importance)",
+                    "Bar + scatter overlay (z-score flags)", "Area chart (daily counts)", "Grouped bar (CCS overlap counts)",
+                    "Horizontal bar (stage progression)", "Grouped bar + F1 line overlay",
+                ],
+                "Data Source": [
+                    "KEV + EPSS, 70/30 holdout", "RF predicted probs vs labels", "RF model feature_importances_",
+                    "KEV dateAdded monthly agg.", "ransomware.live API", "URLhaus + ThreatFox + MalwareBazaar",
+                    "IBM CODB 2024 / SANS model", "Classifier threshold sweep",
+                ],
+                "Course Ref": [
+                    "Wk 4, sl. 69-70", "Wk 4, sl. 71", "Wk 4, sl. 63",
+                    "Wk 4, sl. 33-38", "Wk 4, sl. 34", "Wk 4 (event corr.)",
+                    "—", "Wk 4, sl. 70",
+                ],
             })
             st.dataframe(viz_doc_df, use_container_width=True, hide_index=True)
 
