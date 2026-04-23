@@ -342,6 +342,31 @@ def fetch_epss_top():
 
         return pd.DataFrame(_FALLBACK_EPSS)
 
+@st.cache_data(ttl=3600)
+def fetch_epss_for_cves(cve_ids: list) -> pd.DataFrame:
+    """Batch-query EPSS API for specific CVE IDs (100 per request)."""
+    all_rows = []
+    batch_size = 100
+    try:
+        for i in range(0, len(cve_ids), batch_size):
+            batch = cve_ids[i : i + batch_size]
+            r = requests.get(
+                f"https://api.first.org/data/v1/epss?cve={','.join(batch)}",
+                timeout=15,
+            )
+            r.raise_for_status()
+            data = r.json().get("data", [])
+            all_rows.extend(data)
+        if not all_rows:
+            return pd.DataFrame(columns=["cve", "epss", "percentile"])
+        df = pd.DataFrame(all_rows)
+        df["epss"] = df["epss"].astype(float)
+        df["percentile"] = df["percentile"].astype(float)
+        return df
+    except Exception:
+        return pd.DataFrame(columns=["cve", "epss", "percentile"])
+
+
 def filter_kev_finance(df):
     """Filter KEV for records matching financial-sector vendors."""
     if df.empty:
@@ -3290,33 +3315,52 @@ elif page == "📐  Analytics":
         with jc3:
             st.markdown("""<div class="card" style="border-left:4px solid #6B5B95; min-height:135px">
             <b style="color:#6B5B95">Data & Tools</b><br>
-            <span style="font-size:0.85rem"><b>Sources:</b> CISA KEV + EPSS<br>
-            <b>Target:</b> knownRansomwareCampaignUse<br>
-            <b>Tools:</b> scikit-learn, pandas, Plotly</span>
+            <span style="font-size:0.85rem"><b>Sources:</b> CISA KEV + EPSS (all CVEs)<br>
+            <b>Features:</b> 13 (EPSS, vendor, vuln-type, urgency)<br>
+            <b>Target:</b> knownRansomwareCampaignUse</span>
             </div>""", unsafe_allow_html=True)
 
         # ── Visual pipeline ─────────────────────────────────────────────────
         st.markdown("""<div style="text-align:center; padding:10px 0 6px 0; font-size:0.85rem; color:#94A3B8">
-        <b>Pipeline:</b> &nbsp; KEV + EPSS &nbsp;→&nbsp; Feature Engineering &nbsp;→&nbsp;
-        70/30 Holdout Split &nbsp;→&nbsp; Random Forest &nbsp;→&nbsp;
+        <b>Pipeline:</b> &nbsp; KEV (all CVEs) + EPSS (batch query) &nbsp;→&nbsp; 13 Features &nbsp;→&nbsp;
+        70/30 Holdout &nbsp;→&nbsp; Random Forest (200 trees) &nbsp;→&nbsp;
         Confusion Matrix · Precision · Recall · F1 · ROC-AUC
         </div>""", unsafe_allow_html=True)
 
         if not kev_an.empty and not epss_an.empty:
-            # ── Merge KEV + EPSS ────────────────────────────────────────────
+            # ── Merge KEV + EPSS (batch-query for ALL KEV CVEs) ────────────
             clf_data = kev_an.copy()
-            if "cveID" in clf_data.columns and "cve" in epss_an.columns:
-                clf_data = clf_data.merge(
-                    epss_an[["cve", "epss"]].rename(columns={"cve": "cveID"}),
-                    on="cveID", how="left",
-                )
+            if "cveID" in clf_data.columns:
+                _kev_cves = clf_data["cveID"].dropna().unique().tolist()
+                _epss_full = fetch_epss_for_cves(_kev_cves)
+                if not _epss_full.empty and "cve" in _epss_full.columns:
+                    clf_data = clf_data.merge(
+                        _epss_full[["cve", "epss", "percentile"]].rename(columns={"cve": "cveID"}),
+                        on="cveID", how="left",
+                    )
+                else:
+                    # Fallback to top-500 if batch query fails
+                    clf_data = clf_data.merge(
+                        epss_an[["cve", "epss"]].rename(columns={"cve": "cveID"}),
+                        on="cveID", how="left",
+                    )
             clf_data["epss"] = clf_data.get("epss", pd.Series(dtype=float)).fillna(0.0)
+            clf_data["percentile"] = clf_data.get("percentile", pd.Series(dtype=float)).fillna(0.0)
 
             # ── Feature: days since added to KEV ────────────────────────────
             if "dateAdded" in clf_data.columns:
                 clf_data["days_in_kev"] = (pd.Timestamp.now() - clf_data["dateAdded"]).dt.days
             else:
                 clf_data["days_in_kev"] = 0
+
+            # ── Feature: CISA urgency (days between dateAdded and dueDate) ──
+            if "dueDate" in clf_data.columns and "dateAdded" in clf_data.columns:
+                clf_data["dueDate"] = pd.to_datetime(clf_data["dueDate"], errors="coerce")
+                clf_data["remediation_window"] = (
+                    clf_data["dueDate"] - clf_data["dateAdded"]
+                ).dt.days.fillna(0).clip(lower=0)
+            else:
+                clf_data["remediation_window"] = 0
 
             # ── Feature: vendor is critical infrastructure vendor ─────────
             _critical_vendors = [
@@ -3329,19 +3373,37 @@ elif page == "📐  Analytics":
                 .apply(lambda v: int(any(cv in v for cv in _critical_vendors)))
             )
 
+            # ── Feature: product attack surface frequency ─────────────────
+            _product_lower = clf_data["product"].fillna("unknown").str.lower()
+            _prod_freq = _product_lower.value_counts()
+            clf_data["product_freq"] = _product_lower.map(_prod_freq).fillna(1).astype(int)
+
             # ── Features: vulnerability type keyword flags ──────────────────
-            _vuln_name = clf_data["vulnerabilityName"].fillna("").str.lower()
-            clf_data["is_rce"] = _vuln_name.str.contains(
+            # Combine vulnerabilityName + shortDescription for richer signal
+            _vuln_text = (
+                clf_data["vulnerabilityName"].fillna("") + " " +
+                clf_data.get("shortDescription", pd.Series("", index=clf_data.index)).fillna("")
+            ).str.lower()
+            clf_data["is_rce"] = _vuln_text.str.contains(
                 "remote code|rce|command injection|code execution", regex=True
             ).astype(int)
-            clf_data["is_priv_esc"] = _vuln_name.str.contains(
+            clf_data["is_priv_esc"] = _vuln_text.str.contains(
                 "privilege escalation|elevation of privilege", regex=True
             ).astype(int)
-            clf_data["is_overflow"] = _vuln_name.str.contains(
+            clf_data["is_overflow"] = _vuln_text.str.contains(
                 "buffer overflow|heap overflow|memory corruption|use.after.free", regex=True
             ).astype(int)
-            clf_data["is_auth_bypass"] = _vuln_name.str.contains(
+            clf_data["is_auth_bypass"] = _vuln_text.str.contains(
                 "authentication bypass|improper auth|bypass", regex=True
+            ).astype(int)
+            clf_data["is_deserialization"] = _vuln_text.str.contains(
+                "deserialization|deserializ|untrusted data", regex=True
+            ).astype(int)
+            clf_data["is_path_traversal"] = _vuln_text.str.contains(
+                "path traversal|directory traversal|file inclusion", regex=True
+            ).astype(int)
+            clf_data["is_sqli"] = _vuln_text.str.contains(
+                "sql injection|sqli", regex=True
             ).astype(int)
 
             # ── Target variable ─────────────────────────────────────────────
@@ -3350,8 +3412,10 @@ elif page == "📐  Analytics":
             ).astype(int)
 
             feature_cols = [
-                "epss", "days_in_kev", "vendor_is_critical",
+                "epss", "percentile", "days_in_kev", "remediation_window",
+                "vendor_is_critical", "product_freq",
                 "is_rce", "is_priv_esc", "is_overflow", "is_auth_bypass",
+                "is_deserialization", "is_path_traversal", "is_sqli",
             ]
             X = clf_data[feature_cols].fillna(0)
             y = clf_data["target"]
@@ -3385,9 +3449,9 @@ elif page == "📐  Analytics":
             ctrl1, ctrl2 = st.columns(2)
             with ctrl1:
                 test_size = st.slider("Test set proportion (holdout)", 0.15, 0.40, 0.30, 0.05, key="clf_test")
-                n_trees = st.slider("Number of trees (n_estimators)", 50, 500, 150, 50, key="clf_trees")
+                n_trees = st.slider("Number of trees (n_estimators)", 50, 500, 200, 50, key="clf_trees")
             with ctrl2:
-                max_depth = st.slider("Maximum tree depth", 2, 20, 6, 1, key="clf_depth")
+                max_depth = st.slider("Maximum tree depth", 2, 20, 8, 1, key="clf_depth")
                 clf_threshold = st.slider("Classification threshold (P ≥ threshold → positive)", 0.10, 0.90, 0.50, 0.05, key="clf_thresh")
 
             # ── Train / Test split ──────────────────────────────────────────
@@ -3480,7 +3544,7 @@ elif page == "📐  Analytics":
                     text=feat_imp["Importance"].map("{:.3f}".format),
                 )
                 fig_imp.update_traces(textposition="outside")
-                fig_imp.update_layout(height=340, coloraxis_showscale=False,
+                fig_imp.update_layout(height=420, coloraxis_showscale=False,
                                       yaxis=dict(autorange="reversed"))
                 st.plotly_chart(_fix_chart(fig_imp), use_container_width=True)
                 _caption("**Fig 26.** Random Forest feature importance — higher = more discriminative for ransomware prediction.")
@@ -3525,24 +3589,14 @@ elif page == "📐  Analytics":
                 ip_prob_thresh = st.slider("Ransomware probability threshold", 0.10, 0.90, 0.50, 0.05, key="ip_prob")
                 ip_show_type = st.radio("Chart type", ["Bar Chart", "Scatter Plot", "Table Only"], horizontal=True, key="ip_chart")
 
-            if not kev_an.empty and not epss_an.empty:
-                # Build quick classifier for interactive panel
-                _ip_data = kev_an.copy()
-                if "cveID" in _ip_data.columns and "cve" in epss_an.columns:
-                    _ip_data = _ip_data.merge(
-                        epss_an[["cve", "epss"]].rename(columns={"cve": "cveID"}), on="cveID", how="left")
-                _ip_data["epss"] = _ip_data.get("epss", pd.Series(dtype=float)).fillna(0.0)
-                _ip_data["days_in_kev"] = (pd.Timestamp.now() - _ip_data["dateAdded"]).dt.days if "dateAdded" in _ip_data.columns else 0
-                _vuln = _ip_data["vulnerabilityName"].fillna("").str.lower()
-                _ip_data["is_rce"] = _vuln.str.contains("remote code|rce|command injection|code execution", regex=True).astype(int)
-                _ip_data["is_priv_esc"] = _vuln.str.contains("privilege escalation|elevation of privilege", regex=True).astype(int)
-                _ip_data["target"] = (_ip_data["knownRansomwareCampaignUse"].fillna("Unknown") == "Known").astype(int)
-                _feats = ["epss", "days_in_kev", "is_rce", "is_priv_esc"]
-                _X = _ip_data[_feats].fillna(0)
+            # Reuse clf_data & feature_cols from Tab 1 (same scope)
+            if "clf_data" in dir() and not clf_data.empty and "target" in clf_data.columns:
+                _ip_data = clf_data.copy()
+                _X = _ip_data[feature_cols].fillna(0)
                 _y = _ip_data["target"]
                 if _y.sum() >= 2 and (len(_y) - _y.sum()) >= 2:
                     _Xtr, _Xte, _ytr, _yte = train_test_split(_X, _y, test_size=0.3, random_state=42, stratify=_y)
-                    _rf = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42, class_weight="balanced")
+                    _rf = RandomForestClassifier(n_estimators=200, max_depth=8, random_state=42, class_weight="balanced")
                     _rf.fit(_Xtr, _ytr)
                     _ip_data["risk_probability"] = _rf.predict_proba(_X)[:, 1]
                     _ip_data["predicted_ransomware"] = (_ip_data["risk_probability"] >= ip_prob_thresh).astype(int)
