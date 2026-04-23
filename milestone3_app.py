@@ -3317,7 +3317,7 @@ elif page == "📐  Analytics":
             <b style="color:#6B5B95">Data & Tools</b><br>
             <span style="font-size:0.85rem"><b>Sources:</b> CISA KEV + EPSS (all CVEs)<br>
             <b>Features:</b> 13 (EPSS, vendor, vuln-type, urgency)<br>
-            <b>Target:</b> knownRansomwareCampaignUse</span>
+            <b>Tools:</b> scikit-learn, pandas, Plotly</span>
             </div>""", unsafe_allow_html=True)
 
         # ── Visual pipeline ─────────────────────────────────────────────────
