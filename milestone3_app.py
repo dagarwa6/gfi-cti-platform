@@ -891,7 +891,7 @@ if page == "✅  What's New":
             ("Approach 3 — Cross-Source IOC Correlation", "Malware family tags from URLhaus, ThreatFox, and MalwareBazaar cross-referenced via set intersection. Compound Confidence Scoring (CCS): single-source = CCS 1, dual-source = CCS 2, tri-source = CCS 3. Multi-source corroboration principle (NATO STANAG 2511)."),
             ("Interactive Analytics Panel (Required)", "Unified control panel with selectbox for analytical approach, parameter sliders (classification threshold, tree count, z-score threshold, top-N), and dynamically updating charts and metrics."),
             ("Operational Metrics Dashboard", "MTTD (Mean Time to Detect) reduction estimates. Alert precision/recall benchmarks comparing classifier-based vs CVSS-only alerting. False-positive rate reduction analysis."),
-            ("Validation & Error Analysis", "Holdout validation (70/30 split per Wk 4 slides). Confusion matrix analysis. Cross-source consistency check. Documented assumptions, limitations, and known error sources."),
+            ("Validation & Error Analysis", "Holdout validation (70/30 stratified split). Confusion matrix analysis. Cross-source consistency check. Documented assumptions, limitations, and known error sources."),
             ("Preliminary Visualizations", "ROC curve, confusion matrix heatmap, feature importance bar chart, temporal anomaly timeline — each documented with process, data, and CTI value."),
             ("Key Insights & Intelligence Summary", "Classifier-identified high-risk CVE patterns, ransomware surge early warnings, cross-source corroborated threat families, and actionable recommendations for GFI SOC teams."),
         ]
@@ -3278,13 +3278,13 @@ elif page == "📐  Analytics":
             st.markdown("""<div class="card" style="border-left:4px solid #C9A017; min-height:135px">
             <b style="color:#C9A017">Why Classification?</b><br>
             <span style="font-size:0.85rem">Predicts which KEV CVEs will be weaponised in ransomware — converting raw data into
-            <b>actionable patch priorities</b> for GFI SOC teams (Wk 4, slide 63).</span>
+            <b>actionable patch priorities</b> for GFI SOC teams.</span>
             </div>""", unsafe_allow_html=True)
         with jc2:
             st.markdown("""<div class="card" style="border-left:4px solid #2E86AB; min-height:135px">
             <b style="color:#2E86AB">Algorithm</b><br>
             <span style="font-size:0.85rem"><b>Random Forest</b> — ensemble of decision trees; handles mixed features,
-            resists overfitting, provides feature importance (Wk 4, slide 65). <code>class_weight="balanced"</code>
+            resists overfitting, and provides feature importance. <code>class_weight="balanced"</code>
             for imbalanced classes.</span>
             </div>""", unsafe_allow_html=True)
         with jc3:
@@ -3406,6 +3406,10 @@ elif page == "📐  Analytics":
                 y_proba = rf_model.predict_proba(X_test)[:, 1]
                 y_pred = (y_proba >= clf_threshold).astype(int)
 
+                # Store for downstream tabs (Operational Metrics)
+                st.session_state["_clf_y_test"] = y_test
+                st.session_state["_clf_y_proba"] = y_proba
+
                 # ── Evaluation Metrics ──────────────────────────────────────
                 st.markdown('<div class="sub-header">Model Evaluation</div>', unsafe_allow_html=True)
 
@@ -3460,7 +3464,7 @@ elif page == "📐  Analytics":
                         legend=dict(x=0.35, y=0.05),
                     )
                     st.plotly_chart(_fix_chart(fig_roc), use_container_width=True)
-                    _caption("**Fig 25.** ROC curve — AUC measures classifier quality across all thresholds (Wk 4, slide 71).")
+                    _caption("**Fig 25.** ROC curve — AUC measures classifier quality across all thresholds.")
 
                 # ── Feature Importance ──────────────────────────────────────
                 feat_imp = pd.DataFrame({
@@ -3636,10 +3640,10 @@ elif page == "📐  Analytics":
         # Compact 3-column method card
         _ad1, _ad2, _ad3 = st.columns(3)
         _ad1.markdown("""<div class="card" style="border-left:4px solid #2E86AB;padding:10px 14px">
-        <b style="color:#2E86AB">Why</b><br><span style="font-size:0.85rem">Spikes in KEV additions or ransomware victims signal active campaigns requiring immediate response (Wk 4, sl. 33-34).</span>
+        <b style="color:#2E86AB">Why</b><br><span style="font-size:0.85rem">Spikes in KEV additions or ransomware victims signal active exploitation campaigns requiring immediate response.</span>
         </div>""", unsafe_allow_html=True)
         _ad2.markdown("""<div class="card" style="border-left:4px solid #2E86AB;padding:10px 14px">
-        <b style="color:#2E86AB">Method</b><br><span style="font-size:0.85rem"><b>Point anomaly</b> detection via rolling z-score. z = (x − μ_rolling) / σ_rolling. Semi-supervised (Wk 4, sl. 38).</span>
+        <b style="color:#2E86AB">Method</b><br><span style="font-size:0.85rem"><b>Point anomaly</b> detection via rolling z-score. z = (x − μ_rolling) / σ_rolling. Semi-supervised approach.</span>
         </div>""", unsafe_allow_html=True)
         _ad3.markdown("""<div class="card" style="border-left:4px solid #2E86AB;padding:10px 14px">
         <b style="color:#2E86AB">Data</b><br><span style="font-size:0.85rem">CISA KEV dateAdded (monthly, 2021–present) + Ransomware.live victim timestamps (recent window).</span>
@@ -3796,25 +3800,37 @@ elif page == "📐  Analytics":
             st.plotly_chart(_fix_chart(fig_mttd), use_container_width=True)
             _caption("Source: IBM CODB 2024 baseline; reductions per SANS CTI maturity model.")
 
-        # ── Precision / Recall trade-off chart ────────────────
+        # ── Precision / Recall trade-off chart (from live classifier) ──
         with om_col2:
-            pr_df = pd.DataFrame({
-                "Threshold": ["P ≥ 0.30", "P ≥ 0.50", "P ≥ 0.70", "EPSS ≥ 0.5 only"],
-                "Precision": [72, 84, 91, 78],
-                "Recall": [85, 68, 48, 51],
-                "F1": [0.78, 0.75, 0.63, 0.62],
-            })
-            fig_pr = go.Figure()
-            fig_pr.add_trace(go.Bar(x=pr_df["Threshold"], y=pr_df["Precision"], name="Precision %", marker_color="#2E86AB"))
-            fig_pr.add_trace(go.Bar(x=pr_df["Threshold"], y=pr_df["Recall"], name="Recall %", marker_color="#C9A017"))
-            fig_pr.add_trace(go.Scatter(x=pr_df["Threshold"], y=pr_df["F1"]*100, name="F1 ×100",
-                                        mode="lines+markers", line=dict(color="#C0392B", width=2), yaxis="y2"))
-            fig_pr.update_layout(title="Classifier Threshold vs Precision / Recall", height=280,
-                                 barmode="group", yaxis_title="%",
-                                 yaxis2=dict(title="F1 ×100", overlaying="y", side="right", range=[0,100]),
-                                 legend=dict(orientation="h", yanchor="bottom", y=1.02))
-            st.plotly_chart(_fix_chart(fig_pr), use_container_width=True)
-            _caption("P ≥ 0.50 default balances precision (84%) with recall (68%). EPSS-only shown for comparison.")
+            _clf_yt = st.session_state.get("_clf_y_test")
+            _clf_yp = st.session_state.get("_clf_y_proba")
+            if _clf_yt is not None and _clf_yp is not None:
+                _thresholds = [0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80]
+                _pr_rows = []
+                for _t in _thresholds:
+                    _preds = (_clf_yp >= _t).astype(int)
+                    _tp = int(((_preds == 1) & (_clf_yt == 1)).sum())
+                    _fp = int(((_preds == 1) & (_clf_yt == 0)).sum())
+                    _fn = int(((_preds == 0) & (_clf_yt == 1)).sum())
+                    _prec = _tp / (_tp + _fp) if (_tp + _fp) > 0 else 0.0
+                    _rec = _tp / (_tp + _fn) if (_tp + _fn) > 0 else 0.0
+                    _f1 = 2 * _prec * _rec / (_prec + _rec) if (_prec + _rec) > 0 else 0.0
+                    _pr_rows.append({"Threshold": f"P ≥ {_t:.2f}", "Precision": round(_prec * 100, 1),
+                                     "Recall": round(_rec * 100, 1), "F1": round(_f1, 3)})
+                pr_df = pd.DataFrame(_pr_rows)
+                fig_pr = go.Figure()
+                fig_pr.add_trace(go.Bar(x=pr_df["Threshold"], y=pr_df["Precision"], name="Precision %", marker_color="#2E86AB"))
+                fig_pr.add_trace(go.Bar(x=pr_df["Threshold"], y=pr_df["Recall"], name="Recall %", marker_color="#C9A017"))
+                fig_pr.add_trace(go.Scatter(x=pr_df["Threshold"], y=pr_df["F1"]*100, name="F1 ×100",
+                                            mode="lines+markers", line=dict(color="#C0392B", width=2), yaxis="y2"))
+                fig_pr.update_layout(title="Classifier Threshold vs Precision / Recall (Live)", height=280,
+                                     barmode="group", yaxis_title="%",
+                                     yaxis2=dict(title="F1 ×100", overlaying="y", side="right", range=[0, 100]),
+                                     legend=dict(orientation="h", yanchor="bottom", y=1.02))
+                st.plotly_chart(_fix_chart(fig_pr), use_container_width=True)
+                _caption("Computed from the Random Forest classifier's held-out test predictions across threshold values.")
+            else:
+                st.info("Train the classifier in the **CVE Risk Classifier** tab first to populate this chart.")
 
     # ── VALIDATION & INSIGHTS ───────────────────────────────────────────────
     with an_tab6:
@@ -3826,7 +3842,7 @@ elif page == "📐  Analytics":
             _v1, _v2, _v3 = st.columns(3)
             _v1.markdown("""<div class="card" style="border-left:4px solid #1E3A5F;padding:10px 14px">
             <b style="color:#1E3A5F">Holdout Split</b><br>
-            <span style="font-size:0.85rem">70/30 stratified split preserving class ratio. Metrics: confusion matrix, precision, recall, F1, ROC-AUC (Wk 4, sl. 67-71).</span>
+            <span style="font-size:0.85rem">70/30 stratified split preserving class ratio. Metrics: confusion matrix, precision, recall, F1, ROC-AUC.</span>
             </div>""", unsafe_allow_html=True)
             _v2.markdown("""<div class="card" style="border-left:4px solid #C9A017;padding:10px 14px">
             <b style="color:#C9A017">Cross-Source Check</b><br>
@@ -3834,7 +3850,7 @@ elif page == "📐  Analytics":
             </div>""", unsafe_allow_html=True)
             _v3.markdown("""<div class="card" style="border-left:4px solid #C0392B;padding:10px 14px">
             <b style="color:#C0392B">Class Imbalance</b><br>
-            <span style="font-size:0.85rem">~20-25% positive class addressed via <code>class_weight="balanced"</code> — inverse-frequency sample weighting (Wk 4, sl. 70).</span>
+            <span style="font-size:0.85rem">~20-25% positive class addressed via <code>class_weight="balanced"</code> — inverse-frequency sample weighting.</span>
             </div>""", unsafe_allow_html=True)
 
             with st.expander("Assumptions & Limitations", expanded=False):
@@ -3843,7 +3859,7 @@ elif page == "📐  Analytics":
 - **Temporal depth:** Ransomware.live returns ~100 recent records; 12-month history planned for M4
 - **Tag matching:** Lowercase normalisation partially resolves naming variance (e.g. "qakbot" vs "qbot")
 - **Leakage risk:** `days_in_kev` may correlate with labelling timing; production would use days-since-publication
-- **Operational estimates:** MTTD/precision values are modelled; production requires SOC alert history
+- **MTTD estimates:** Baseline (194 days) from IBM CODB 2024; reductions modelled per SANS CTI maturity levels
 """)
 
 
@@ -3895,12 +3911,7 @@ elif page == "📐  Analytics":
                 "Data Source": [
                     "KEV + EPSS, 70/30 holdout", "RF predicted probs vs labels", "RF model feature_importances_",
                     "KEV dateAdded monthly agg.", "ransomware.live API", "URLhaus + ThreatFox + MalwareBazaar",
-                    "IBM CODB 2024 / SANS model", "Classifier threshold sweep",
-                ],
-                "Course Ref": [
-                    "Wk 4, sl. 69-70", "Wk 4, sl. 71", "Wk 4, sl. 63",
-                    "Wk 4, sl. 33-38", "Wk 4, sl. 34", "Wk 4 (event corr.)",
-                    "—", "Wk 4, sl. 70",
+                    "IBM CODB 2024 / SANS model", "Classifier threshold sweep (live)",
                 ],
             })
             st.dataframe(viz_doc_df, use_container_width=True, hide_index=True)
