@@ -374,23 +374,27 @@ def filter_kev_finance(df):
 # ─────────────────────────────────────────────
 
 def _llm_brief(prompt: str, max_tokens: int = 1024) -> str | None:
-    """Call Google Gemini Flash API for intelligence briefings. Returns None on failure."""
+    """Call Google Gemini API for intelligence briefings. Tries 2.5-flash then 2.0-flash. Returns None on failure."""
     api_key = st.secrets.get("GEMINI_API_KEY", "")
     if not api_key:
         return None
-    try:
-        r = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
-            json={
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.3},
-            },
-            timeout=20,
-        )
-        r.raise_for_status()
-        return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception:
-        return None
+    for model in ("gemini-2.5-flash", "gemini-2.0-flash"):
+        try:
+            r = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}",
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.3},
+                },
+                timeout=25,
+            )
+            if r.status_code == 429:
+                continue  # try next model
+            r.raise_for_status()
+            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception:
+            continue
+    return None
 
 
 def _build_triage_queue(kev_df, epss_full_df, urlhaus_df, tf_df, mb_df, rw_df):
