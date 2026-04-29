@@ -373,11 +373,9 @@ def filter_kev_finance(df):
 # M4: LLM HELPER (Gemini Flash — free tier)
 # ─────────────────────────────────────────────
 
-def _llm_brief(prompt: str, max_tokens: int = 1024) -> str | None:
-    """Call Google Gemini API for intelligence briefings. Tries 2.5-flash then 2.0-flash. Returns None on failure."""
-    api_key = st.secrets.get("GEMINI_API_KEY", "")
-    if not api_key:
-        return None
+@st.cache_data(ttl=3600, show_spinner=False)
+def _llm_call_cached(prompt: str, max_tokens: int, api_key: str) -> str | None:
+    """Cached Gemini API call. Result persists for 60 min or until data changes (which changes the prompt)."""
     for model in ("gemini-2.5-flash", "gemini-2.0-flash"):
         try:
             r = requests.post(
@@ -386,15 +384,30 @@ def _llm_brief(prompt: str, max_tokens: int = 1024) -> str | None:
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.3},
                 },
-                timeout=25,
+                timeout=30,
             )
             if r.status_code == 429:
-                continue  # try next model
+                continue
             r.raise_for_status()
             return r.json()["candidates"][0]["content"]["parts"][0]["text"]
         except Exception:
             continue
     return None
+
+
+def _llm_brief(prompt: str, max_tokens: int = 1024) -> str | None:
+    """Call Gemini Flash with caching. Returns HTML-ready text or None."""
+    api_key = st.secrets.get("GEMINI_API_KEY", "")
+    if not api_key:
+        return None
+    raw = _llm_call_cached(prompt, max_tokens, api_key)
+    if not raw:
+        return None
+    # Convert markdown bold/italic to HTML for proper rendering in cards
+    html = raw.replace("\n", "<br>")
+    html = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', html)
+    html = re.sub(r'\*(.+?)\*', r'<i>\1</i>', html)
+    return html
 
 
 def _build_triage_queue(kev_df, epss_full_df, urlhaus_df, tf_df, mb_df, rw_df):
@@ -4171,10 +4184,43 @@ elif page == "🎯  Operational Intelligence":
         _top_epss_cve = _top_row.get("cve", "N/A")
         _top_epss_val = float(_top_row.get("epss", 0))
     _top_rw_groups = []
-    if not rw_m4.empty and "group_name" in rw_m4.columns:
-        _top_rw_groups = rw_m4["group_name"].value_counts().head(5).index.tolist()
-    elif not rw_m4.empty and "group" in rw_m4.columns:
-        _top_rw_groups = rw_m4["group"].value_counts().head(5).index.tolist()
+    _rw_group_counts = ""
+    _grp_col = "group_name" if (not rw_m4.empty and "group_name" in rw_m4.columns) else "group"
+    if not rw_m4.empty and _grp_col in rw_m4.columns:
+        _grp_vc = rw_m4[_grp_col].value_counts().head(5)
+        _top_rw_groups = _grp_vc.index.tolist()
+        _rw_group_counts = "; ".join(f"{g} ({c} victims)" for g, c in _grp_vc.items())
+
+    # Top critical CVEs for richer LLM context
+    _top_critical_cves = ""
+    if not triage_df.empty:
+        _crit = triage_df[triage_df["Severity"] == "Critical"].head(5)
+        if not _crit.empty:
+            _top_critical_cves = ", ".join(_crit["Indicator"].tolist()[:5])
+
+    # Top EPSS CVEs (top 5 by score)
+    _top_epss_list = ""
+    if not _epss_full_m4.empty:
+        _top5 = _epss_full_m4.nlargest(5, "epss")
+        _top_epss_list = "; ".join(f"{r['cve']} (EPSS={r['epss']:.4f})" for _, r in _top5.iterrows())
+
+    # Top URLhaus threats
+    _top_uh_threats = ""
+    if not urlhaus_m4.empty and "threat" in urlhaus_m4.columns:
+        _uh_vc = urlhaus_m4["threat"].value_counts().head(5)
+        _top_uh_threats = "; ".join(f"{t} ({c} URLs)" for t, c in _uh_vc.items())
+
+    # Top malware families from MalwareBazaar
+    _top_mb_sigs = ""
+    if not mb_m4.empty and "signature" in mb_m4.columns:
+        _mb_vc = mb_m4["signature"].dropna().value_counts().head(5)
+        _top_mb_sigs = "; ".join(f"{s} ({c} samples)" for s, c in _mb_vc.items())
+
+    # Top KEV vendors
+    _top_kev_vendors = ""
+    if not kev_m4.empty and "vendorProject" in kev_m4.columns:
+        _vv = kev_m4["vendorProject"].value_counts().head(5)
+        _top_kev_vendors = "; ".join(f"{v} ({c} CVEs)" for v, c in _vv.items())
 
     m4t1, m4t2, m4t3, m4t4, m4t5 = st.tabs([
         "🔍 Intelligence Summary",
@@ -4390,24 +4436,32 @@ elif page == "🎯  Operational Intelligence":
             ex4.metric("Critical Alerts", f"{_n_critical:,}")
 
             # LLM-generated executive brief
-            _exec_prompt = f"""You are a CTI analyst preparing a concise executive intelligence brief for the CISO of a Global Financial Institution (GFI).
+            _exec_prompt = f"""You are a CTI analyst at a Global Financial Institution (GFI). Write an executive intelligence brief for the CISO using ONLY the specific data below. You MUST reference the exact numbers, CVE IDs, and group names provided.
 
-Current threat data:
-- {_n_kev:,} active CVEs in CISA Known Exploited Vulnerabilities catalog
-- {_n_rw_cves:,} CVEs confirmed used in ransomware campaigns ({_n_rw_cves/_n_kev*100:.1f}% of KEV)
-- Highest-risk CVE by exploit probability: {_top_epss_cve} (EPSS: {_top_epss_val:.4f})
-- {_n_rw_victims:,} ransomware victim posts in the past 7 days
-- Top active ransomware groups: {', '.join(_top_rw_groups[:5]) if _top_rw_groups else 'data pending'}
-- {_n_critical:,} critical and {_n_high:,} high-severity alerts in the triage queue
-- {_n_urlhaus:,} malicious URLs currently active (URLhaus)
-- Classifier model (Random Forest, 13 features) achieves ROC-AUC ~0.76 for ransomware risk prediction
+=== LIVE PLATFORM DATA (as of {date.today().strftime('%B %d, %Y')}) ===
+VULNERABILITY LANDSCAPE:
+- {_n_kev:,} actively exploited CVEs tracked by CISA KEV
+- {_n_rw_cves:,} of these ({_n_rw_cves/_n_kev*100:.1f}%) are confirmed in ransomware campaigns
+- Top 5 highest-risk CVEs by exploit probability: {_top_epss_list or 'N/A'}
+- Top 5 critical CVEs in triage queue: {_top_critical_cves or 'N/A'}
+- Most affected vendors: {_top_kev_vendors or 'N/A'}
 
-Write a professional 200-word executive brief covering:
-1. Current threat posture assessment (2-3 sentences)
-2. Top 3 business risks with potential financial impact
-3. Three recommended board-level actions (bullet points)
+ACTIVE THREATS:
+- {_n_rw_victims:,} ransomware victim posts in the current feed
+- Active ransomware groups: {_rw_group_counts or 'N/A'}
+- {_n_urlhaus:,} malicious URLs active — top threats: {_top_uh_threats or 'N/A'}
+- Top malware families (MalwareBazaar): {_top_mb_sigs or 'N/A'}
 
-Use clear, non-technical language appropriate for C-suite executives. Do not use markdown headers. Use plain paragraphs and bullet points."""
+TRIAGE STATUS:
+- {_n_critical:,} Critical-severity alerts, {_n_high:,} High-severity alerts pending
+
+RULES:
+1. Reference the EXACT CVE IDs, group names, and numbers from the data above — do NOT use generic placeholders
+2. Mention specific ransomware groups by name with their victim counts
+3. Mention the most-exploited vendors by name
+4. Write 200 words max, non-technical language for C-suite executives
+5. Structure: Threat Posture (2-3 sentences) → Top 3 Business Risks → 3 Recommended Actions
+6. Do NOT use markdown headers (no ## or **). Use HTML: <b>bold</b> for emphasis, <br> for line breaks, bullet points as plain text with •"""
 
             with st.spinner("Generating executive brief..."):
                 exec_brief = _llm_brief(_exec_prompt, max_tokens=600)
@@ -4457,23 +4511,32 @@ Use clear, non-technical language appropriate for C-suite executives. Do not use
             st.markdown(f"*Generated: {date.today().strftime('%B %d, %Y')} | Classification: TLP:GREEN | For: SOC Analysts, IR Team*")
 
             # LLM-generated analyst brief
-            _analyst_prompt = f"""You are a senior CTI analyst preparing a technical threat brief for SOC analysts at a Global Financial Institution.
+            _analyst_prompt = f"""You are a senior CTI analyst writing a technical threat brief for the SOC team at a Global Financial Institution. Use ONLY the specific data below. You MUST cite exact CVE IDs, malware names, group names, and numbers.
 
-Current threat data:
+=== LIVE PLATFORM DATA (as of {date.today().strftime('%B %d, %Y')}) ===
+VULNERABILITY DATA:
 - {_n_kev:,} active CVEs in CISA KEV, {_n_rw_cves:,} confirmed ransomware-linked
-- Highest EPSS CVE: {_top_epss_cve} (score: {_top_epss_val:.4f})
-- {_n_rw_victims:,} ransomware victims in current feed; top groups: {', '.join(_top_rw_groups[:5]) if _top_rw_groups else 'N/A'}
-- {_n_urlhaus:,} active malicious URLs (URLhaus)
-- {_n_critical:,} critical, {_n_high:,} high-severity alerts in triage queue
-- Random Forest classifier (13 features, AUC ~0.76) identifies EPSS score and product frequency as top ransomware predictors
+- Top 5 highest EPSS CVEs: {_top_epss_list or 'N/A'}
+- Top critical CVEs requiring patching: {_top_critical_cves or 'N/A'}
+- Most affected vendors in KEV: {_top_kev_vendors or 'N/A'}
 
-Write a 250-word technical analyst brief covering:
-1. Active threat landscape (2-3 sentences)
-2. Top 5 priority actions with specific technical controls (firewall rules, EDR signatures, patching targets)
-3. IOC categories requiring immediate attention
-4. Monitoring recommendations for the next 7 days
+ACTIVE THREATS:
+- {_n_rw_victims:,} ransomware victims — groups: {_rw_group_counts or 'N/A'}
+- {_n_urlhaus:,} malicious URLs — top threats: {_top_uh_threats or 'N/A'}
+- Top malware families: {_top_mb_sigs or 'N/A'}
 
-Use technical SOC language. Be specific about CVE IDs, tools, and detection methods. Do not use markdown headers."""
+CLASSIFIER INSIGHT:
+- Random Forest (13 features, AUC ~0.76): EPSS score and product frequency are the top ransomware predictors
+- Edge/VPN products (Fortinet, Ivanti, Citrix, Palo Alto) dominate high-risk predictions
+
+TRIAGE STATUS:
+- {_n_critical:,} Critical, {_n_high:,} High-severity alerts in queue
+
+RULES:
+1. Reference the EXACT CVE IDs, malware names, and group names from the data — do NOT use generic placeholders
+2. Write 250 words max, technical SOC language
+3. Structure: Active Threat Landscape (2-3 sentences) → Top 5 Priority Actions (with specific CVE IDs and controls) → IOC Categories Requiring Attention → 7-Day Monitoring Recommendations
+4. Do NOT use markdown headers (no ## or **). Use HTML: <b>bold</b> for emphasis, <br> for line breaks, bullet points as plain text with •"""
 
             with st.spinner("Generating analyst brief..."):
                 analyst_brief = _llm_brief(_analyst_prompt, max_tokens=800)
