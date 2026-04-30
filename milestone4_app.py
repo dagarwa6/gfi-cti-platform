@@ -378,18 +378,28 @@ def _llm_call_cached(prompt: str, max_tokens: int, api_key: str) -> str | None:
     """Cached Gemini API call. Result persists for 60 min or until data changes (which changes the prompt)."""
     for model in ("gemini-2.5-flash", "gemini-2.0-flash"):
         try:
+            gen_config = {"maxOutputTokens": max_tokens, "temperature": 0.3}
+            # Disable thinking for 2.5-flash — thinking budget eats output tokens
+            if "2.5" in model:
+                gen_config["thinkingConfig"] = {"thinkingBudget": 0}
             r = requests.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}",
                 json={
                     "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.3},
+                    "generationConfig": gen_config,
                 },
                 timeout=30,
             )
             if r.status_code == 429:
                 continue
             r.raise_for_status()
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            data = r.json()
+            parts = data["candidates"][0]["content"]["parts"]
+            # Get last non-thought part (safety for models that still split)
+            for p in reversed(parts):
+                if not p.get("thought", False) and p.get("text", "").strip():
+                    return p["text"]
+            return parts[-1].get("text", "")
         except Exception:
             continue
     return None
