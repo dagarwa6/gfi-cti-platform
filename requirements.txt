@@ -9,3 +9,4 @@ plotly>=5.20.0
 requests>=2.31.0
 python-dateutil>=2.9.0
 scikit-learn>=1.4.0
+fpdf2>=2.7.0
