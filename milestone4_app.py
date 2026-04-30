@@ -1190,7 +1190,7 @@ if page == "✅  What's New":
             ("Dissemination Strategy", "Stakeholder communication matrix (who/when/what/how/TLP). IOC-to-control course-of-action mapping with owners and priority levels. Diamond model update recommendations. Next CTI iteration planning."),
             ("Actionable Outputs (STIX 2.1, CSV, JSON)", "Three export formats from the triage dashboard. STIX 2.1 bundle generation with indicator objects, TLP markings, and pattern expressions. IOC-to-recommended-control mapping table."),
             ("Automated Weekly Intelligence Report", "One-click LLM-generated comprehensive weekly threat report from live platform data. Structured sections (executive summary, key metrics, top threats, priority actions, IOC watchlist, risk outlook). Downloadable as styled HTML for stakeholder distribution."),
-            ("Future CTI Platform Directions", "Three justified development directions: (1) real-time streaming + SIEM integration, (2) LLM-powered automated reports + RAG Q&A, (3) automated STIX/TAXII sharing + FS-ISAC integration. 6-month phased roadmap visualization."),
+            ("Future CTI Platform Directions", "Three justified development directions: (1) real-time streaming + SIEM integration, (2) RAG-based natural language Q&A for analysts, (3) automated STIX/TAXII sharing + FS-ISAC integration. 6-month phased roadmap visualization."),
             ("Professional Polish", "Final visual consistency pass. All charts captioned with source attribution. Dark theme optimized. App stands alone without verbal explanation."),
         ]
         for title, desc in m4_items:
@@ -4882,16 +4882,17 @@ RULES:
             },
             {
                 "icon": "🤖",
-                "title": "2. LLM-Powered Automated Report Generation & RAG Q&A",
+                "title": "2. RAG-Based Natural Language Q&A for Analysts",
                 "color": "#2E86AB",
-                "description": "Expand the current Gemini Flash integration into a full agentic pipeline: automated weekly intelligence reports, "
-                               "stakeholder-customized briefs, and a Retrieval-Augmented Generation (RAG) interface for on-demand analyst queries.",
-                "value": "Reduces analyst report writing from days to minutes. Enables non-technical stakeholders to query the threat landscape "
-                         "in natural language (e.g., 'What ransomware groups targeted banks this quarter?'). Directly aligns with the "
-                         "agentic AI paradigm for CTI dissemination.",
-                "approach": "RAG pipeline: embed IOC/CVE data into a vector store (ChromaDB), retrieval via semantic search, "
-                            "generation via Gemini or Claude. Scheduled weekly report generation with stakeholder routing.",
-                "timeline": "Phase 1 (2 months): RAG Q&A interface. Phase 2 (4 months): Scheduled automated reports with email distribution.",
+                "description": "Build a Retrieval-Augmented Generation (RAG) interface so analysts can query the threat landscape in natural language. "
+                               "Note: automated weekly report generation was originally planned as a future direction but has already been implemented in M4 "
+                               "(see Role-Based Views → Generate Weekly Report).",
+                "value": "Enables non-technical stakeholders to ask questions like 'What ransomware groups targeted banks this quarter?' and receive "
+                         "data-grounded answers backed by live IOC/CVE evidence. Eliminates the need to navigate dashboards for ad-hoc intelligence queries. "
+                         "Directly aligns with the agentic AI paradigm for CTI dissemination.",
+                "approach": "RAG pipeline: embed IOC/CVE data into a vector store (ChromaDB or Pinecone), retrieval via semantic search, "
+                            "generation via Gemini or Claude. Conversational memory for multi-turn analyst sessions.",
+                "timeline": "Phase 1 (2 months): Vector store ingestion pipeline. Phase 2 (4 months): Conversational RAG interface with citation support.",
             },
             {
                 "icon": "🌐",
@@ -4928,14 +4929,14 @@ RULES:
 
         # ── Roadmap visualization ────────────────────────────────
         roadmap_df = pd.DataFrame({
-            "Direction": ["Real-Time Streaming", "Real-Time Streaming", "LLM Reports & RAG", "LLM Reports & RAG", "STIX/TAXII Sharing", "STIX/TAXII Sharing"],
-            "Phase": ["Kafka Pipeline", "SIEM Integration", "RAG Q&A", "Auto Reports", "STIX Generation", "TAXII + FS-ISAC"],
+            "Direction": ["Real-Time Streaming", "Real-Time Streaming", "RAG Q&A", "RAG Q&A", "STIX/TAXII Sharing", "STIX/TAXII Sharing"],
+            "Phase": ["Kafka Pipeline", "SIEM Integration", "Vector Store", "Conversational RAG", "STIX Generation", "TAXII + FS-ISAC"],
             "Start Month": [1, 3, 1, 3, 1, 3],
             "Duration (months)": [3, 3, 2, 2, 2, 3],
         })
         roadmap_df["End Month"] = roadmap_df["Start Month"] + roadmap_df["Duration (months)"]
         fig_road = go.Figure()
-        colors = {"Real-Time Streaming": "#C0392B", "LLM Reports & RAG": "#2E86AB", "STIX/TAXII Sharing": "#27AE60"}
+        colors = {"Real-Time Streaming": "#C0392B", "RAG Q&A": "#2E86AB", "STIX/TAXII Sharing": "#27AE60"}
         for _, r in roadmap_df.iterrows():
             fig_road.add_trace(go.Bar(
                 x=[r["Duration (months)"]], y=[r["Direction"]],
@@ -4950,7 +4951,7 @@ RULES:
             xaxis=dict(tickmode="linear", dtick=1, range=[0, 7]),
         )
         st.plotly_chart(_fix_chart(fig_road), use_container_width=True)
-        _caption("**Fig 33.** Development roadmap — 6-month phased timeline for three platform evolution directions. Quick wins (STIX generation, RAG Q&A) prioritized before infrastructure-heavy integrations.")
+        _caption("**Fig 33.** Development roadmap — 6-month phased timeline for three future platform directions. Automated report generation was originally planned here but has already been implemented. Quick wins (STIX generation, vector store) prioritized before infrastructure-heavy integrations.")
 
 # ─────────────────────────────────────────────
 # PAGE: TEAM
