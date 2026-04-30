@@ -1101,6 +1101,7 @@ if page == "✅  What's New":
             ("Role-Based Views with LLM Integration", "Executive Summary and Analyst Drill-Down views. Google Gemini Flash generates stakeholder-customized intelligence briefs from live platform data. Template fallback when no API key is configured."),
             ("Dissemination Strategy", "Stakeholder communication matrix (who/when/what/how/TLP). IOC-to-control course-of-action mapping with owners and priority levels. Diamond model update recommendations. Next CTI iteration planning."),
             ("Actionable Outputs (STIX 2.1, CSV, JSON)", "Three export formats from the triage dashboard. STIX 2.1 bundle generation with indicator objects, TLP markings, and pattern expressions. IOC-to-recommended-control mapping table."),
+            ("Automated Weekly Intelligence Report", "One-click LLM-generated comprehensive weekly threat report from live platform data. Structured sections (executive summary, key metrics, top threats, priority actions, IOC watchlist, risk outlook). Downloadable as styled HTML for stakeholder distribution."),
             ("Future CTI Platform Directions", "Three justified development directions: (1) real-time streaming + SIEM integration, (2) LLM-powered automated reports + RAG Q&A, (3) automated STIX/TAXII sharing + FS-ISAC integration. 6-month phased roadmap visualization."),
             ("Professional Polish", "Final visual consistency pass. All charts captioned with source attribution. Dark theme optimized. App stands alone without verbal explanation."),
         ]
@@ -4140,19 +4141,19 @@ elif page == "📐  Analytics":
                     "Fig 24 — Confusion Matrix", "Fig 25 — ROC Curve", "Fig 26 — Feature Importance",
                     "Fig 27 — Anomaly Detection", "Fig 28 — Ransomware Victims", "Fig 29 — Cross-Source Corroboration",
                     "MTTD Reduction", "Precision / Recall Trade-off",
-                    "Fig 30 — Triage Severity", "Fig 31 — Executive Brief", "Fig 32 — Analyst Brief", "Fig 33 — Roadmap",
+                    "Fig 30 — Triage Severity", "Fig 31 — Executive Brief", "Fig 32 — Analyst Brief", "Fig 33 — Roadmap", "Fig 34 — Weekly Report",
                 ],
                 "Type": [
                     "2×2 heatmap (TP/TN/FP/FN)", "TPR vs FPR across thresholds", "Horizontal bar (Gini importance)",
                     "Bar + scatter overlay (z-score flags)", "Area chart (daily counts)", "Grouped bar (CCS overlap counts)",
                     "Horizontal bar (stage progression)", "Grouped bar + F1 line overlay",
-                    "Donut + stacked bar (severity × category)", "LLM narrative (Gemini Flash)", "LLM narrative (Gemini Flash)", "Gantt-style bar (6-month phases)",
+                    "Donut + stacked bar (severity × category)", "LLM narrative (Gemini Flash)", "LLM narrative (Gemini Flash)", "Gantt-style bar (6-month phases)", "LLM report (Gemini Flash)",
                 ],
                 "Data Source": [
                     "KEV + EPSS, 70/30 holdout", "RF predicted probs vs labels", "RF model feature_importances_",
                     "KEV dateAdded monthly agg.", "ransomware.live API", "URLhaus + ThreatFox + MalwareBazaar",
                     "IBM CODB 2024 / SANS model", "Classifier threshold sweep (live)",
-                    "Triage queue (all sources)", "Live platform metrics → Gemini API", "Live platform metrics → Gemini API", "Expert-defined phases",
+                    "Triage queue (all sources)", "Live platform metrics → Gemini API", "Live platform metrics → Gemini API", "Expert-defined phases", "All sources → Gemini API",
                 ],
             })
             st.dataframe(viz_doc_df, use_container_width=True, hide_index=True)
@@ -4590,6 +4591,105 @@ RULES:
                 if not mb_m4.empty:
                     mb_cols = [c for c in ["first_seen", "file_type", "signature", "file_name", "tags"] if c in mb_m4.columns]
                     st.dataframe(mb_m4[mb_cols].head(50), use_container_width=True, hide_index=True)
+
+        # ── Automated Weekly Intelligence Report ────────────────────────
+        st.divider()
+        st.markdown("#### 📄 Automated Weekly Intelligence Report")
+        st.markdown("Generate a comprehensive, stakeholder-ready intelligence report from live platform data. "
+                    "The report is structured for direct distribution to SOC teams, CISO, and compliance.")
+
+        if st.button("🤖 Generate Weekly Report", type="primary", key="gen_report"):
+            _report_prompt = f"""You are a senior CTI analyst at a Global Financial Institution. Write a comprehensive WEEKLY INTELLIGENCE REPORT using ONLY the specific data below. This report will be distributed to the CISO, SOC team, and compliance officers.
+
+=== LIVE PLATFORM DATA (Week ending {date.today().strftime('%B %d, %Y')}) ===
+
+VULNERABILITY LANDSCAPE:
+- {_n_kev:,} actively exploited CVEs in CISA KEV catalog
+- {_n_rw_cves:,} ({_n_rw_cves/_n_kev*100:.1f}%) confirmed in ransomware campaigns
+- Top 5 highest-risk CVEs: {_top_epss_list or 'N/A'}
+- Top critical CVEs in triage: {_top_critical_cves or 'N/A'}
+- Most affected vendors: {_top_kev_vendors or 'N/A'}
+
+ACTIVE THREAT ACTORS:
+- {_n_rw_victims:,} ransomware victim posts in current feed
+- Active groups: {_rw_group_counts or 'N/A'}
+
+MALWARE & IOC LANDSCAPE:
+- {_n_urlhaus:,} malicious URLs active — top threats: {_top_uh_threats or 'N/A'}
+- Top malware families: {_top_mb_sigs or 'N/A'}
+
+TRIAGE STATUS:
+- {_n_critical:,} Critical, {_n_high:,} High-severity alerts pending action
+
+CLASSIFIER INTELLIGENCE:
+- Random Forest model (13 features, AUC ~0.76)
+- EPSS score and product frequency are top ransomware predictors
+- Edge/VPN products dominate high-risk predictions
+
+REPORT STRUCTURE (follow this exactly):
+1. EXECUTIVE SUMMARY (3-4 sentences summarizing the week's threat posture)
+2. KEY METRICS (list the numbers: total CVEs, ransomware-linked, victims, critical alerts, active URLs)
+3. TOP THREATS THIS WEEK (detail the top 3 threats with specific CVE IDs, group names, malware families — cite exact data)
+4. PRIORITY ACTIONS (5 numbered actions with specific technical controls, owners, and timelines)
+5. IOC WATCHLIST (list top IOC categories to monitor: CVE IDs, malware families, URL threats)
+6. RISK OUTLOOK (2-3 sentences on the 7-day forward-looking risk assessment)
+
+RULES:
+- Reference EXACT CVE IDs, group names, and numbers from the data — no generic placeholders
+- Use HTML formatting: <b>bold</b>, <br> for line breaks, <hr> for section dividers
+- Write 400-500 words
+- Professional tone suitable for distribution to C-suite and technical staff"""
+
+            with st.spinner("Generating weekly intelligence report..."):
+                report_html = _llm_brief(_report_prompt, max_tokens=1500)
+
+            if report_html:
+                st.markdown(f"""<div class="card" style="border-left:5px solid #C9A017; padding:24px; margin-top:12px">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+                    <b style="font-size:1.1rem; color:#1E3A5F">GFI Weekly Threat Intelligence Report</b>
+                    <span style="font-size:0.8rem; color:#94A3B8">Generated: {date.today().strftime('%B %d, %Y')} | TLP:AMBER</span>
+                </div>
+                <hr style="border-color:#E2E8F0; margin:8px 0 16px 0">
+                {report_html}
+                </div>""", unsafe_allow_html=True)
+
+                # Build downloadable HTML report with styling
+                _download_html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>GFI Weekly Threat Intelligence Report — {date.today().strftime('%B %d, %Y')}</title>
+<style>
+body {{ font-family: Calibri, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1A202C; line-height: 1.6; }}
+h1 {{ color: #1E3A5F; border-bottom: 3px solid #C9A017; padding-bottom: 8px; }}
+.meta {{ color: #718096; font-size: 0.9rem; margin-bottom: 20px; }}
+.tlp {{ background: #E67E22; color: white; padding: 2px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }}
+hr {{ border: none; border-top: 1px solid #E2E8F0; margin: 20px 0; }}
+b {{ color: #1E3A5F; }}
+.footer {{ margin-top: 30px; padding-top: 15px; border-top: 2px solid #C9A017; color: #94A3B8; font-size: 0.8rem; }}
+</style></head><body>
+<h1>GFI Weekly Threat Intelligence Report</h1>
+<div class="meta">
+Generated: {date.today().strftime('%B %d, %Y')} | Classification: <span class="tlp">TLP:AMBER</span> | Distribution: CISO, SOC, Compliance<br>
+Platform: GFI CTI Platform (CIS 8684) | Sources: CISA KEV, EPSS, URLhaus, MalwareBazaar, ThreatFox, Ransomware.live
+</div>
+<hr>
+{report_html}
+<div class="footer">
+This report was automatically generated by the GFI CTI Platform using Google Gemini Flash LLM from live threat intelligence data.<br>
+Validate all IOCs before deploying to production controls. Review recommended actions with your SOC manager before implementation.<br>
+CIS 8684 — Cyber Threat Intelligence — Georgia State University — Spring 2026
+</div>
+</body></html>"""
+
+                st.download_button(
+                    "⬇️ Download Report (HTML)",
+                    _download_html,
+                    f"GFI_Weekly_Report_{date.today().isoformat()}.html",
+                    "text/html",
+                    key="dl_weekly_report",
+                )
+                _caption("**Fig 34.** AI-generated weekly intelligence report. Source: Google Gemini Flash LLM synthesizing all platform data sources. Cached for 60 minutes.")
+            else:
+                st.warning("Report generation unavailable. Check Gemini API key in `.streamlit/secrets.toml`.")
 
     # ══════════════════════════════════════════════════════════════════════
     #  TAB 4: DISSEMINATION & COURSES OF ACTION  (20 pts)
